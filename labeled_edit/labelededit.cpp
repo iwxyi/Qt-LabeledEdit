@@ -55,11 +55,13 @@ void LabeledEdit::setAccentColor(QColor color)
 
 void LabeledEdit::showCorrect()
 {
-    startAnimation("CorrectProg", getCorrectProg(), 100, correct_duration, QEasingCurve::OutCubic);
+    wrong_prog = 0;
+    startAnimation("CorrectProg", getCorrectProg(), 100, correct_duration, QEasingCurve::Linear);
 }
 
 void LabeledEdit::showWrong()
 {
+    correct_prog = 0;
     connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::Linear), &QPropertyAnimation::finished, this, [=]{
         // 只显示波浪线一次
         wrong_prog = 0;
@@ -123,21 +125,104 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     QRect geom = line_edit->geometry();
 
 
-    int line_left = geom.left(), line_right = geom.right();
-    int line_top = geom.bottom(), line_width = geom.width();
+    const int line_left = geom.left(), line_right = geom.right();
+    const int line_top = geom.bottom(), line_width = geom.width();
     if (!wrong_prog)
     {
-        // 绘制普通下划线
-        painter.setPen(QPen(grayed_color, 1, Qt::SolidLine, Qt::RoundCap));
-        painter.drawLine(line_left, line_top, line_right, line_top);
+        auto paintLine = [&]{
+            // 绘制普通下划线
+            painter.setPen(QPen(grayed_color, 1, Qt::SolidLine, Qt::RoundCap));
+            painter.drawLine(line_left, line_top, line_right, line_top);
 
-        // 绘制高亮下划线
-        if (focus_prog || loses_prog)
+            // 绘制高亮下划线
+            if (focus_prog || loses_prog)
+            {
+                int w = line_width * focus_prog / 100;
+                int l = line_left + line_width * loses_prog / 100;
+                painter.setPen(QPen(accent_color, pen_width));
+                painter.drawLine(l, line_top, line_left + w, line_top);
+            }
+        };
+
+        // 绘制勾
+        if (!correct_prog) // 普通下划线
         {
-            int w = line_width * focus_prog / 100;
-            int l = line_left + line_width * loses_prog / 100;
-            painter.setPen(QPen(accent_color, pen_width));
-            painter.drawLine(l, line_top, line_left + w, line_top);
+            paintLine();
+        }
+        else // correct_prog // 显示箭头
+        {
+            QFont ft = line_edit->font();
+            QFontMetrics fm(ft);
+            const int short_len = fm.height(); // 线的长度
+            const int blank_len = fm.horizontalAdvance(" ") / 2; // 空白点的宽度
+            const int move_left = short_len / 2;
+            const int step1 = 40;
+            const int step2 = 50;
+            const int step3 = 70;
+
+            // 绘制两截的线
+            auto paint2Line = [&](int blank_left, int right_margin) {
+                // 绘制普通下划线
+                painter.setPen(QPen(grayed_color, 1, Qt::SolidLine, Qt::RoundCap));
+                painter.drawLine(line_left, line_top, blank_left, line_top);
+                if (blank_left+blank_len < line_right)
+                    painter.drawLine(blank_left + blank_len, line_top, line_right - right_margin, line_top);
+
+                // 绘制高亮下划线
+                if (focus_prog || loses_prog)
+                {
+                    painter.setPen(QPen(accent_color, pen_width));
+                    int w = line_width * focus_prog / 100;
+                    int l = line_left + line_width * loses_prog / 100;
+                    int r = line_left + w;
+                    if (r <= blank_left)
+                    {
+                        painter.drawLine(l, line_top, r, line_top);
+                    }
+                    else // 分为两截画
+                    {
+                        painter.drawLine(l, line_top, blank_left, line_top);
+                        if (blank_left + blank_len < line_right)
+                            painter.drawLine(blank_left + blank_len, line_top, qMin(r, line_right - right_margin), line_top);
+                    }
+                }
+            };
+
+            if (correct_prog <= step1) // 分割
+            {
+                int move_dis = move_left * correct_prog / step1; // 左移的位置
+                int blank_left = line_right - blank_len - short_len - move_dis; // 隔断点的左边
+                paint2Line(blank_left, move_dis);
+            }
+            else // 延伸、旋转
+            {
+                if (correct_prog <= step2)
+                {
+                    // 画两截的线
+                    int move_dis = (short_len + move_left + blank_len) * (correct_prog - step1) / (step2 - step1); // 相对于上一阶段的最左边
+                    int blank_left = line_right - (short_len + move_left + blank_len) + move_dis;
+                    qDebug() << blank_left << move_left << line_right;
+                    paint2Line(blank_left, move_left);
+                }
+                else
+                {
+                    // 画普通的线
+                    paintLine();
+                }
+
+//                if (correct_prog <= step3)
+//                {
+//                    // 出现的弧线
+//                    QPainterPath path;
+//                    path.moveTo(line_right - move_left, short_len); // 圆心
+//                    double angle_dis = 0.5; // 短线绕过的弧度 (2PI*r) * (a/2PI) == r/2
+//                    QRect rect(line_right - short_len, line_top-short_len, short_len, short_len);
+//                    painter.setPen(QPen(accent_color, pen_width));
+//                    double angle = -90 + 150 * (correct_prog - step2) / (step3 - step1);
+//                    double angle_span = 360/PI;
+//                    painter.drawArc(rect, static_cast<int>(angle * 16), static_cast<int>(angle_span * 16));
+//                }
+            }
         }
 
         // 绘制文字
@@ -231,13 +316,6 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 }
             }
         }
-
-        // 绘制勾
-        if (correct_prog)
-        {
-
-        }
-
     }
     else // 绘制波浪线
     {
