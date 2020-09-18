@@ -180,7 +180,33 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             else // loses_prog
             {
                 // 左边先下来
-
+                QFont aft = line_edit->font();
+                const double in_size = nfm.pointSizeF();
+                const double up_size = in_size / label_scale;
+                const int count = label_text.size();
+                const double step = 100.0 / count / 4; // 每个文字动画比前面文字慢一点，有种曲线感
+                const double max_angle = PI / 2; // 2/3π~4/3π角度为超过上限
+                const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
+                for (int i = 0; i < count; i++)
+                {
+                    double char_min_prog = step * (count - i - 1);
+                    double prog = label_prog - char_min_prog; // 相对于这个字符串的本身周期的prog
+                    if (prog < 0)
+                        prog = 0;
+                    else if (prog > persist_prog)
+                        prog = persist_prog;
+                    double angle = max_angle * prog / persist_prog;
+                    double cent = sin(angle); // sin(a)是100的百分比，这里超出20%
+                    double size = in_size - (in_size - up_size) * cent;
+                    aft.setPointSizeF(size);
+                    QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
+                    double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
+                    double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
+                    QPointF pos(x, y);
+                    painter.setFont(aft);
+                    painter.drawText(pos, label_text.at(i));
+                    prog -= step;
+                }
             }
         }
 
