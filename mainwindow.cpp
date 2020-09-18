@@ -16,3 +16,27 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
+
+void MainWindow::on_pushButton_2_clicked()
+{
+    if (ui->widget->editor()->hasFocus())
+    {
+        ui->widget->showCorrect();
+    }
+    else if (ui->widget_2->editor()->hasFocus())
+    {
+        ui->widget_2->showCorrect();
+    }
+}
+
+void MainWindow::on_pushButton_clicked()
+{
+    if (ui->widget->editor()->hasFocus())
+    {
+        ui->widget->showWrong();
+    }
+    else if (ui->widget_2->editor()->hasFocus())
+    {
+        ui->widget_2->showWrong();
+    }
+}

@@ -23,16 +23,24 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
         if (line_edit->text().isEmpty())
             startAnimation("LabelProg", getLabelProg(), 0, label_duration, QEasingCurve::Linear);
     });
+    connect(line_edit, &BottomLineEdit::textEdited, this, [=]{
+        if (correct_prog == 100)
+        {
+            startAnimation("CorrectProg", getCorrectProg(), 0, correct_duration, QEasingCurve::Linear);
+        }
+    });
 
     grayed_color = Qt::gray;
     accent_color = QColor(198, 47, 47);
 
     QFont ft = line_edit->font();
-    ft.setPointSize(ft.pointSize() * 1.5);
+    ft.setPointSizeF(ft.pointSize() * 1.5);
     line_edit->setFont(ft);
     QTimer::singleShot(0, [=]{
         adjustBlank();
     });
+
+    this->setFocusProxy(line_edit);
 }
 
 void LabeledEdit::setLabelText(QString text)
@@ -45,7 +53,20 @@ void LabeledEdit::setAccentColor(QColor color)
     this->accent_color = color;
 }
 
-BottomLineEdit *LabeledEdit::getEdit()
+void LabeledEdit::showCorrect()
+{
+    startAnimation("CorrectProg", getCorrectProg(), 100, correct_duration, QEasingCurve::OutCubic);
+}
+
+void LabeledEdit::showWrong()
+{
+    connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::Linear), &QPropertyAnimation::finished, this, [=]{
+        // 只显示波浪线一次
+        wrong_prog = 0;
+    });
+}
+
+BottomLineEdit *LabeledEdit::editor()
 {
     return line_edit;
 }
@@ -60,13 +81,11 @@ void LabeledEdit::adjustBlank()
     QFontMetricsF nfm(nft);
     double label_nh = nfm.height();
     QFont sft = nft;
-    sft.setPointSize(sft.pointSize() / label_scale);
+    sft.setPointSizeF(sft.pointSize() / label_scale);
     QFontMetricsF sfm(sft);
     double label_sh = sfm.lineSpacing();
 
-    auto layout = static_cast<QVBoxLayout*>(this->layout());
-    delete layout->takeAt(0);
-    layout->insertItem(0, label_spacer = new QSpacerItem(0, static_cast<int>(label_sh)));
+    label_spacer->changeSize(0, static_cast<int>(label_sh));
 
     // 缓存文字的位置
     label_in_poss.clear();
@@ -91,11 +110,13 @@ void LabeledEdit::adjustBlank()
 void LabeledEdit::resizeEvent(QResizeEvent *event)
 {
     QWidget::resizeEvent(event);
+    adjustBlank();
 }
 
 void LabeledEdit::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
+    painter.drawRect(0,0,width()-1,height()-1);
 
     // 绘制标签
     const double PI = 3.141592;
@@ -124,9 +145,9 @@ void LabeledEdit::paintEvent(QPaintEvent *)
         {
             QFont nfm = line_edit->font();
             painter.setPen(QPen(grayed_color, 1));
-            painter.setRenderHint(QPainter::TextAntialiasing, true);
+//            painter.setRenderHint(QPainter::TextAntialiasing, true);
 
-            if (label_prog == 0) // 在输入框里面
+            if (label_prog <= 0) // 在输入框里面
             {
                 painter.setFont(nfm);
                 for (int i = 0; i < label_text.size(); i++)
@@ -134,10 +155,10 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     painter.drawText(label_in_poss.at(i), label_text.at(i));
                 }
             }
-            else if (label_prog == 100) // 在输入框上面
+            else if (label_prog >= 100) // 在输入框上面
             {
                 QFont sfm = nfm;
-                sfm.setPointSize(nfm.pointSize() / label_scale);
+                sfm.setPointSizeF(nfm.pointSize() / label_scale);
                 painter.setFont(sfm);
 
                 for (int i = 0; i < label_text.size(); i++)
@@ -154,7 +175,6 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 const double up_size = in_size / label_scale;
                 const int count = label_text.size();
                 const double step = 100.0 / count / 2.5; // 每个文字动画比前面文字慢一点，有种曲线感
-                const double max_angle = PI * 2 / 3; // 2/3π~4/3π角度为超过上限
                 const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
                 for (int i = 0; i < count; i++)
                 {
@@ -164,13 +184,15 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                         prog = 0;
                     else if (prog > persist_prog)
                         prog = persist_prog;
-                    double angle = max_angle * prog / persist_prog;
-                    double cent = sin(angle) * 6 / 5; // sin(a)是100的百分比，这里超出20%
-                    double size = in_size - (in_size - up_size) * cent;
+                    const double max_angle = PI * (0.5 + 1.0/6 * (count-i/2) / count); // 2/3π~4/3π角度为超过上限
+                    const double out_prob = 1.0 / sin(max_angle) - 1;
+                    const double angle = max_angle * prog / persist_prog;
+                    const double cent = sin(angle) * (1 + out_prob); // sin(a)是100的百分比，这里超出20%左右
+                    const double size = in_size - (in_size - up_size) * cent;
                     aft.setPointSizeF(size);
                     QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
-                    double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
-                    double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
+                    const double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
+                    const double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
                     QPointF pos(x, y);
                     painter.setFont(aft);
                     painter.drawText(pos, label_text.at(i));
@@ -196,7 +218,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     else if (prog > persist_prog)
                         prog = persist_prog;
                     double angle = max_angle * prog / persist_prog;
-                    double cent = sin(angle); // sin(a)是100的百分比，这里超出20%
+                    double cent = sin(angle); // sin(a)是100的百分比
                     double size = in_size - (in_size - up_size) * cent;
                     aft.setPointSizeF(size);
                     QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
@@ -235,13 +257,13 @@ QPropertyAnimation* LabeledEdit::startAnimation(QByteArray name, QVariant start,
     return ani;
 }
 
-void LabeledEdit::setLabelProg(int x)
+void LabeledEdit::setLabelProg(double x)
 {
     this->label_prog = x;
     update();
 }
 
-int LabeledEdit::getLabelProg()
+double LabeledEdit::getLabelProg()
 {
     return label_prog;
 }

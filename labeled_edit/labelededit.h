@@ -15,7 +15,7 @@
 class LabeledEdit : public QWidget
 {
     Q_OBJECT
-    Q_PROPERTY(int LabelProg READ getFocusProg WRITE setLabelProg)
+    Q_PROPERTY(double LabelProg READ getFocusProg WRITE setLabelProg)
     Q_PROPERTY(int FocusProg READ getFocusProg WRITE setFocusProg)
     Q_PROPERTY(int LosesProg READ getLosesProg WRITE setLosesProg)
     Q_PROPERTY(int WrongProg READ getWrongProg WRITE setWrongProg)
@@ -25,8 +25,10 @@ public:
 
     void setLabelText(QString text);
     void setAccentColor(QColor color);
+    void showCorrect();
+    void showWrong();
 
-    BottomLineEdit* getEdit();
+    BottomLineEdit* editor();
     void adjustBlank();
 
 protected:
@@ -39,8 +41,8 @@ public slots:
 
 private:
     QPropertyAnimation *startAnimation(QByteArray name, QVariant start, QVariant end, int duration, QEasingCurve curve = QEasingCurve::Linear);
-    void setLabelProg(int x);
-    int getLabelProg();
+    void setLabelProg(double x);
+    double getLabelProg();
     void setFocusProg(int x);
     int getFocusProg();
     void setLosesProg(int x);
@@ -53,6 +55,7 @@ private:
 private:
     BottomLineEdit* line_edit;
     QSpacerItem* label_spacer;
+    QSpacerItem* correct_spacer;
 
     QColor grayed_color; // 没有聚焦的颜色：下划线+文字
     QColor accent_color; // 终点颜色
@@ -61,7 +64,7 @@ private:
     QList<QPointF> label_in_poss; // 标签在输入框里面的左下角位置
     QList<QPointF> label_up_poss; // 标签在输入框上方的左下角位置
 
-    int label_prog = 0;   // 标签上下移动
+    double label_prog = 0;   // 标签上下移动
     int focus_prog = 0;   // 下划线从左往右
     int loses_prog = 0;   // 下划线从右边消失
     int wrong_prog = 0;   // 底部下划线浪动
@@ -70,7 +73,7 @@ private:
     const int pen_width = 2;
     const double label_scale = 1.5;
     const int label_duration = 500;
-    const int focus_duration = 350;
+    const int focus_duration = 500;
     const int wrong_duration = 400;
     const int correct_duration = 300;
 
