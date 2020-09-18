@@ -9,22 +9,40 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
     layout->addSpacerItem(label_spacer);
     layout->addWidget(line_edit);
 
-    adjustBlank();
-
     connect(line_edit, &BottomLineEdit::signalFocusIn, this, [=]{
         connect(startAnimation("FocusProg", getFocusProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
             loses_prog = 0;
         });
+        startAnimation("LabelProg", getLabelProg(), 100, label_duration, QEasingCurve::Linear);
     });
     connect(line_edit, &BottomLineEdit::signalFocusOut, this, [=]{
         connect(startAnimation("LosesProg", getLosesProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
             focus_prog = 0;
             loses_prog = 0;
         });
+        if (line_edit->text().isEmpty())
+            startAnimation("LabelProg", getLabelProg(), 0, label_duration, QEasingCurve::Linear);
     });
 
     grayed_color = Qt::gray;
     accent_color = QColor(198, 47, 47);
+
+    QFont ft = line_edit->font();
+    ft.setPointSize(ft.pointSize() * 1.5);
+    line_edit->setFont(ft);
+    QTimer::singleShot(0, [=]{
+        adjustBlank();
+    });
+}
+
+void LabeledEdit::setLabelText(QString text)
+{
+    this->label_text = text;
+}
+
+void LabeledEdit::setAccentColor(QColor color)
+{
+    this->accent_color = color;
 }
 
 BottomLineEdit *LabeledEdit::getEdit()
@@ -32,17 +50,42 @@ BottomLineEdit *LabeledEdit::getEdit()
     return line_edit;
 }
 
+/**
+ * 修改控件大小或者字体大小后，调整各种间距与位置
+ */
 void LabeledEdit::adjustBlank()
 {
     // 计算四周的空白
-    QFont ft = line_edit->font();
-    ft.setPointSize(ft.pointSize() / 2);
-    QFontMetrics fm(ft);
-    int label_height = fm.lineSpacing();
+    QFont nft = line_edit->font();
+    QFontMetricsF nfm(nft);
+    double label_nh = nfm.height();
+    QFont sft = nft;
+    sft.setPointSize(sft.pointSize() / label_scale);
+    QFontMetricsF sfm(sft);
+    double label_sh = sfm.lineSpacing();
 
     auto layout = static_cast<QVBoxLayout*>(this->layout());
     delete layout->takeAt(0);
-    layout->insertItem(0, label_spacer = new QSpacerItem(0, label_height));
+    layout->insertItem(0, label_spacer = new QSpacerItem(0, static_cast<int>(label_sh)));
+
+    // 缓存文字的位置
+    label_in_poss.clear();
+    label_up_poss.clear();
+    QRect geom = line_edit->geometry();
+    double big_margin = (geom.height() - label_nh) / 2;
+    double small_margin = big_margin / label_scale;
+    QPointF in_pos(geom.left() + big_margin, geom.bottom() - big_margin);
+    QPointF up_pos(geom.left() + small_margin, geom.top() - small_margin);
+    label_in_poss.append(in_pos);
+    label_up_poss.append(up_pos);
+    for (int i = 1; i < label_text.size(); i++)
+    {
+        QString t = label_text.left(i);
+        double in_w = nfm.horizontalAdvance(t);
+        double up_w = sfm.horizontalAdvance(t);
+        label_in_poss.append(QPointF(in_pos + QPointF(in_w, 0)));
+        label_up_poss.append(QPointF(up_pos + QPointF(up_w, 0)));
+    }
 }
 
 void LabeledEdit::resizeEvent(QResizeEvent *event)
@@ -55,6 +98,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     QPainter painter(this);
 
     // 绘制标签
+    const double PI = 3.141592;
     QRect geom = line_edit->geometry();
 
 
@@ -63,7 +107,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     if (!wrong_prog)
     {
         // 绘制普通下划线
-        painter.setPen(QPen(grayed_color, pen_width));
+        painter.setPen(QPen(grayed_color, 1, Qt::SolidLine, Qt::RoundCap));
         painter.drawLine(line_left, line_top, line_right, line_top);
 
         // 绘制高亮下划线
@@ -75,8 +119,76 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             painter.drawLine(l, line_top, line_left + w, line_top);
         }
 
-        // 绘制勾
+        // 绘制文字
+        if (!label_text.isEmpty())
+        {
+            QFont nfm = line_edit->font();
+            painter.setPen(QPen(grayed_color, 1));
+            painter.setRenderHint(QPainter::TextAntialiasing, true);
 
+            if (label_prog == 0) // 在输入框里面
+            {
+                painter.setFont(nfm);
+                for (int i = 0; i < label_text.size(); i++)
+                {
+                    painter.drawText(label_in_poss.at(i), label_text.at(i));
+                }
+            }
+            else if (label_prog == 100) // 在输入框上面
+            {
+                QFont sfm = nfm;
+                sfm.setPointSize(nfm.pointSize() / label_scale);
+                painter.setFont(sfm);
+
+                for (int i = 0; i < label_text.size(); i++)
+                {
+                    painter.drawText(label_up_poss.at(i), label_text.at(i));
+                }
+
+            }
+            else if (focus_prog && !loses_prog)
+            {
+                // 左边先抬起来，左边进度最大
+                QFont aft = line_edit->font();
+                const double in_size = nfm.pointSizeF();
+                const double up_size = in_size / label_scale;
+                const int count = label_text.size();
+                const double step = 100.0 / count / 2.5; // 每个文字动画比前面文字慢一点，有种曲线感
+                const double max_angle = PI * 2 / 3; // 2/3π~4/3π角度为超过上限
+                const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
+                for (int i = 0; i < count; i++)
+                {
+                    double char_min_prog = step * i;
+                    double prog = label_prog - char_min_prog; // 相对于这个字符串的本身周期的prog
+                    if (prog < 0)
+                        prog = 0;
+                    else if (prog > persist_prog)
+                        prog = persist_prog;
+                    double angle = max_angle * prog / persist_prog;
+                    double cent = sin(angle) * 6 / 5; // sin(a)是100的百分比，这里超出20%
+                    double size = in_size - (in_size - up_size) * cent;
+                    aft.setPointSizeF(size);
+                    QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
+                    double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
+                    double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
+                    QPointF pos(x, y);
+                    painter.setFont(aft);
+                    painter.drawText(pos, label_text.at(i));
+                    prog -= step;
+                }
+            }
+            else // loses_prog
+            {
+                // 左边先下来
+
+            }
+        }
+
+        // 绘制勾
+        if (correct_prog)
+        {
+
+        }
 
     }
     else // 绘制波浪线

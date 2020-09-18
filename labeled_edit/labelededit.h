@@ -7,6 +7,8 @@
 #include <QPropertyAnimation>
 #include <QPainter>
 #include <QPainterPath>
+#include <QTimer>
+#include <cmath>
 #include <QDebug>
 #include "bottomlineedit.h"
 
@@ -20,6 +22,9 @@ class LabeledEdit : public QWidget
     Q_PROPERTY(int CorrectProg READ getCorrectProg WRITE setCorrectProg)
 public:
     LabeledEdit(QWidget *parent = nullptr);
+
+    void setLabelText(QString text);
+    void setAccentColor(QColor color);
 
     BottomLineEdit* getEdit();
     void adjustBlank();
@@ -52,15 +57,19 @@ private:
     QColor grayed_color; // 没有聚焦的颜色：下划线+文字
     QColor accent_color; // 终点颜色
 
+    QString label_text;      // 标签
+    QList<QPointF> label_in_poss; // 标签在输入框里面的左下角位置
+    QList<QPointF> label_up_poss; // 标签在输入框上方的左下角位置
+
     int label_prog = 0;   // 标签上下移动
     int focus_prog = 0;   // 下划线从左往右
     int loses_prog = 0;   // 下划线从右边消失
     int wrong_prog = 0;   // 底部下划线浪动
     int correct_prog = 0; // 右边的勾
 
-    const int label_margin = 3;       // 标签与上下左右有3个像素的距离
     const int pen_width = 2;
-    const int label_duration = 300;
+    const double label_scale = 1.5;
+    const int label_duration = 500;
     const int focus_duration = 350;
     const int wrong_duration = 400;
     const int correct_duration = 300;
