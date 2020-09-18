@@ -24,7 +24,7 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
             startAnimation("LabelProg", getLabelProg(), 0, label_duration, QEasingCurve::Linear);
     });
     connect(line_edit, &BottomLineEdit::textEdited, this, [=]{
-        if (correct_prog == 100)
+        if (correct_prog)
         {
             startAnimation("CorrectProg", getCorrectProg(), 0, correct_duration, QEasingCurve::Linear);
         }
@@ -61,6 +61,27 @@ void LabeledEdit::showCorrect()
 
 void LabeledEdit::showWrong()
 {
+    // 预生成点的路径
+    point_index = 0;
+    wave_vs.clear();
+    double down_dis = qrand() % line_edit->height() / 2;
+    const int wrong_right_frame = 50;
+    const int t = line_edit->geometry().bottom();
+    for (int i = 0; i < wrong_right_frame; i++)
+    {
+        wave_vs.append(t + down_dis * i / wrong_right_frame);
+    }
+    for (int i = wrong_right_frame; i >= -wrong_right_frame; i--)
+    {
+        wave_vs.append(t + down_dis * i / wrong_right_frame);
+    }
+    for (int i = -wrong_right_frame; i <= 0; i++)
+    {
+        wave_vs.append(t + down_dis * i / wrong_right_frame);
+    }
+
+
+    // 开始动画
     correct_prog = 0;
     connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::Linear), &QPropertyAnimation::finished, this, [=]{
         // 只显示波浪线一次
@@ -118,7 +139,7 @@ void LabeledEdit::resizeEvent(QResizeEvent *event)
 void LabeledEdit::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    painter.drawRect(0,0,width()-1,height()-1);
+    // painter.drawRect(0,0,width()-1,height()-1);
 
     // 绘制标签
     const double PI = 3.141592;
@@ -211,6 +232,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     paintLine();
                 }
 
+                painter.setPen(QPen(accent_color, pen_width));
                 painter.setRenderHint(QPainter::Antialiasing, true);
                 double radius = short_len / 2.0;
                 const int offset = 2; // 线宽的偏移
@@ -373,16 +395,29 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     }
     else // 绘制波浪线
     {
+        painter.setPen(QPen(accent_color, pen_width));
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        int index = wrong_prog;
+        int size = wave_vs.size();
+        QPointF prev(line_right, index >= size ? line_top : wave_vs.at(index));
+
+        for (int x = line_right-1; x >= line_left; x--)
+        {
+            index--;
+            QPointF pos(x, ( index < 0 || index >= size) ? line_top : wave_vs.at(index));
+            painter.drawLine(prev, pos);
+            prev = pos;
+        }
 
     }
 }
 
-QPropertyAnimation* LabeledEdit::startAnimation(QByteArray name, QVariant start, QVariant end, int duration, QEasingCurve curve)
+QPropertyAnimation* LabeledEdit::startAnimation(QByteArray name, double start, double end, int duration, QEasingCurve curve)
 {
     QPropertyAnimation* ani = new QPropertyAnimation(this, name);
     ani->setStartValue(start);
     ani->setEndValue(end);
-    ani->setDuration(duration);
+    ani->setDuration(static_cast<int>(duration * qAbs(start - end) / 100));
     ani->setEasingCurve(curve);
     ani->start();
     connect(ani, SIGNAL(finished()), ani, SLOT(deleteLater()));

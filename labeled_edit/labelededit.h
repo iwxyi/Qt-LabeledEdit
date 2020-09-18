@@ -40,7 +40,7 @@ signals:
 public slots:
 
 private:
-    QPropertyAnimation *startAnimation(QByteArray name, QVariant start, QVariant end, int duration, QEasingCurve curve = QEasingCurve::Linear);
+    QPropertyAnimation *startAnimation(QByteArray name, double start, double end, int duration, QEasingCurve curve = QEasingCurve::Linear);
     void setLabelProg(double x);
     double getLabelProg();
     void setFocusProg(int x);
@@ -74,8 +74,11 @@ private:
     const double label_scale = 1.5;
     const int label_duration = 500;
     const int focus_duration = 500;
-    const int wrong_duration = 500;
+    const int wrong_duration = 5000;
     const int correct_duration = 600;
+
+    QList<double> wave_vs; // 波浪的点的动画
+    int point_index;
 
 };
 
