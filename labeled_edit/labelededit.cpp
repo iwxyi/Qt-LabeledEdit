@@ -378,15 +378,22 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     }
     else // 错误曲线
     {
+        QFont nft = line_edit->font();
+        QFontMetrics fm(nft);
+        double n_offset = fm.horizontalAdvance(line_edit->displayText()) / 2;
+        QFont sft = nft;
+        QFontMetrics sfm(sft);
+        double s_offset = sfm.horizontalAdvance(label_text) * 2 / 3;
+
         // 绘制波浪线
-        const int ampl = QFontMetrics(line_edit->font()).height()*2/3; // 振幅
-        const int ctrlen = line_width / 4; // 控制点对应方向延伸的距离
-        const int total_len = line_width * 4 + pen_width*2;
+        const double ampl = QFontMetrics(line_edit->font()).height()*2/3; // 振幅
+        const double ctrlen = line_width / 4; // 控制点对应方向延伸的距离
+        const double total_len = line_width * 4 + pen_width*2 + qMax(n_offset, s_offset);
         QPainterPath path;
         painter.save();
         painter.setPen(QPen(accent_color, pen_width));
         painter.setRenderHint(QPainter::Antialiasing, true);
-        double paint_left = -line_width * wrong_prog * 3.0 / 100;
+        double paint_left = -wrong_prog * (total_len-line_width-pen_width*2) / 100;
         path.moveTo(paint_left, line_top);
         path.lineTo(paint_left + line_width, line_top);
         path.cubicTo(QPointF(paint_left+line_width+ctrlen, line_top),
@@ -400,17 +407,15 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                      QPointF(paint_left+line_width*3, line_top));
         path.lineTo(paint_left + total_len, line_top);
 
-        painter.setClipRect(QRect(line_left, line_top - ampl - pen_width, line_width+pen_width/2, line_top + ampl + pen_width));
+        painter.setClipRect(QRectF(line_left-pen_width/2, line_top - ampl - pen_width, line_width+pen_width, line_top + ampl + pen_width));
         painter.drawPath(path);
         painter.restore();
 
         // 绘制文字
-        QFont nft = line_edit->font();
         painter.setPen(QPen(grayed_color, 1));
         if (line_edit->text().isEmpty() && !line_edit->hasFocus()) // 文字在编辑框中
         {
             painter.setFont(nft);
-
             for (int i = 0; i < label_text.size(); i++)
             {
                 double x = label_in_poss.at(i).x();
@@ -421,21 +426,21 @@ void LabeledEdit::paintEvent(QPaintEvent *)
         }
         else // 文字在编辑框上面
         {
-            QFont sfm = nft;
-            sfm.setPointSizeF(nft.pointSize() / label_scale);
-            painter.setFont(sfm);
+            sft.setPointSizeF(nft.pointSize() / label_scale);
+            painter.setFont(sft);
 
             for (int i = 0; i < label_text.size(); i++)
             {
                 double x = label_up_poss.at(i).x();
-                double perc = (x - paint_left) / total_len;
+                double perc = (x - paint_left - s_offset) / total_len;
+                if (perc < 0)
+                    perc = 0;
                 double y = path.pointAtPercent(perc).y();
                 painter.drawText(QPointF(x, y + label_up_poss.at(i).y() - line_top), label_text.at(i));
             }
 
             // 输入的曲线
             QString display_text = line_edit->displayText();
-            QFontMetrics fm(nft);
             if (!display_text.isEmpty())
             {
                 painter.setFont(nft);
@@ -446,7 +451,9 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 for (int i = 0; i < display_text.size(); i++)
                 {
                     double x = pos.x() + fm.horizontalAdvance(display_text.left(i));
-                    double perc = (x - paint_left) / total_len;
+                    double perc = (x - n_offset - paint_left) / total_len;
+                    if (perc < 0)
+                        perc = 0;
                     double y = path.pointAtPercent(perc).y();
                     painter.drawText(QPointF(x, y + pos.y() - line_top), display_text.at(i));
                 }
