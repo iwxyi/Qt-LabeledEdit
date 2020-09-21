@@ -379,51 +379,29 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     }
     else // 绘制波浪线
     {
+        const int ampl = QFontMetrics(line_edit->font()).height()*2/3; // 振幅
+        const int ctrlen = ampl;
+        QPainterPath path;
+        painter.save();
         painter.setPen(QPen(accent_color, pen_width));
         painter.setRenderHint(QPainter::Antialiasing, true);
-        QPainterPath path;
+        double paint_left = -line_width * wrong_prog * 3.0 / 100;
+        path.moveTo(paint_left, line_top);
+        path.lineTo(paint_left + line_width, line_top);
+        path.cubicTo(QPointF(paint_left+line_width+ctrlen, line_top),
+                     QPointF(paint_left+line_width*3/2-ctrlen, line_top+ampl),
+                     QPointF(paint_left+line_width*3/2, line_top+ampl));
+        path.cubicTo(QPointF(paint_left+line_width*3/2+ctrlen, line_top+ampl),
+                     QPointF(paint_left+line_width*5/2-ctrlen, line_top-ampl),
+                     QPointF(paint_left+line_width*5/2, line_top-ampl));
+        path.cubicTo(QPointF(paint_left+line_width*5/2+ctrlen, line_top-ampl),
+                     QPointF(paint_left+line_width*3-ctrlen, line_top),
+                     QPointF(paint_left+line_width*3, line_top));
+        path.lineTo(paint_left + line_width * 4 + pen_width*2, line_top);
 
-        QFont ft = line_edit->font();
-        QFontMetrics fm(ft);
-        const int max_prog = 100;
-        const int step1 = 20;
-        const int step2 = 30;
-        const int step3 = 40;
-        const int step4 = 60;
-        const double wave_speed = 40; // 40个单位全程移动完
-        const int ampl = fm.height();
-        const int ctrl_len = fm.height();
-        const int hor = line_top; // 水平线位置
-        path.moveTo(line_left, line_top);
-        if (wrong_prog <= step1) // 右边下移
-        {
-            double step_prog = (double)wrong_prog / step1;
-            int right_y = hor + ampl * step_prog;
-            int ctrl1x = line_right - wave_speed / max_prog * step_prog * line_width; // 相对于line_left的x
-            path.cubicTo(QPoint(line_left + ctrl_len, hor),
-                         QPoint(ctrl1x - ctrl_len, hor),
-                         QPoint(ctrl1x, hor));
-            path.cubicTo(QPoint(ctrl1x + ctrl_len, hor),
-                         QPoint(line_right - ctrl_len, right_y),
-                         QPoint(line_right, right_y));
-        }
-        else if (wrong_prog <= step2)
-        {
-            double step_prog = (double)(wrong_prog-step1) / (step2-step1);
-            int right_y = hor + ampl - ampl * step_prog;
-            int ctrl1x = line_right - wave_speed / max_prog * step_prog * line_width; // 相对于line_left的x
-            path.cubicTo(QPoint(line_left + ctrl_len, hor),
-                         QPoint(ctrl1x - ctrl_len, hor),
-                         QPoint(ctrl1x, hor));
-            path.cubicTo(QPoint(ctrl1x + ctrl_len, hor),
-                         QPoint(line_right - ctrl_len, right_y),
-                         QPoint(line_right, right_y));
-        }
-        else if (wrong_prog < step3)
-        {
-
-        }
+        painter.setClipRect(QRect(line_left, line_top - ampl - pen_width, line_width+pen_width/2, line_top + ampl + pen_width));
         painter.drawPath(path);
+        painter.restore();
     }
 }
 

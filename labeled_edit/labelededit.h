@@ -74,7 +74,7 @@ private:
     const double label_scale = 1.5;
     const int label_duration = 500;
     const int focus_duration = 500;
-    const int wrong_duration = 5000;
+    const int wrong_duration = 500;
     const int correct_duration = 600;
 
 };
