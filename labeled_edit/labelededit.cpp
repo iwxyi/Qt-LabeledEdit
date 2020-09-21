@@ -17,7 +17,8 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
     });
     connect(line_edit, &BottomLineEdit::signalFocusOut, this, [=]{
         connect(startAnimation("LosesProg", getLosesProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
-            focus_prog = 0;
+            if (!line_edit->hasFocus())
+                focus_prog = 0;
             loses_prog = 0;
         });
         if (line_edit->text().isEmpty())
@@ -61,15 +62,13 @@ void LabeledEdit::showCorrect()
 
 void LabeledEdit::showWrong()
 {
-    // 预生成点的路径
-
-
-
+    line_edit->setViewShowed(false);
     // 开始动画
     correct_prog = 0;
     connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::Linear), &QPropertyAnimation::finished, this, [=]{
         // 只显示波浪线一次
         wrong_prog = 0;
+        line_edit->setViewShowed(true);
     });
 }
 
@@ -288,13 +287,13 @@ void LabeledEdit::paintEvent(QPaintEvent *)
         // 绘制文字
         if (!label_text.isEmpty())
         {
-            QFont nfm = line_edit->font();
+            QFont nft = line_edit->font();
             painter.setPen(QPen(grayed_color, 1));
 //            painter.setRenderHint(QPainter::TextAntialiasing, true);
 
             if (label_prog <= 0) // 在输入框里面
             {
-                painter.setFont(nfm);
+                painter.setFont(nft);
                 for (int i = 0; i < label_text.size(); i++)
                 {
                     painter.drawText(label_in_poss.at(i), label_text.at(i));
@@ -302,8 +301,8 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             }
             else if (label_prog >= 100) // 在输入框上面
             {
-                QFont sfm = nfm;
-                sfm.setPointSizeF(nfm.pointSize() / label_scale);
+                QFont sfm = nft;
+                sfm.setPointSizeF(nft.pointSize() / label_scale);
                 painter.setFont(sfm);
 
                 for (int i = 0; i < label_text.size(); i++)
@@ -316,7 +315,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             {
                 // 左边先抬起来，左边进度最大
                 QFont aft = line_edit->font();
-                const double in_size = nfm.pointSizeF();
+                const double in_size = nft.pointSizeF();
                 const double up_size = in_size / label_scale;
                 const int count = label_text.size();
                 const double step = 100.0 / count / 2.5; // 每个文字动画比前面文字慢一点，有种曲线感
@@ -348,7 +347,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             {
                 // 左边先下来
                 QFont aft = line_edit->font();
-                const double in_size = nfm.pointSizeF();
+                const double in_size = nft.pointSizeF();
                 const double up_size = in_size / label_scale;
                 const int count = label_text.size();
                 const double step = 100.0 / count / 4; // 每个文字动画比前面文字慢一点，有种曲线感
@@ -377,10 +376,12 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             }
         }
     }
-    else // 绘制波浪线
+    else // 错误曲线
     {
+        // 绘制波浪线
         const int ampl = QFontMetrics(line_edit->font()).height()*2/3; // 振幅
-        const int ctrlen = ampl;
+        const int ctrlen = line_width / 4; // 控制点对应方向延伸的距离
+        const int total_len = line_width * 4 + pen_width*2;
         QPainterPath path;
         painter.save();
         painter.setPen(QPen(accent_color, pen_width));
@@ -397,11 +398,61 @@ void LabeledEdit::paintEvent(QPaintEvent *)
         path.cubicTo(QPointF(paint_left+line_width*5/2+ctrlen, line_top-ampl),
                      QPointF(paint_left+line_width*3-ctrlen, line_top),
                      QPointF(paint_left+line_width*3, line_top));
-        path.lineTo(paint_left + line_width * 4 + pen_width*2, line_top);
+        path.lineTo(paint_left + total_len, line_top);
 
         painter.setClipRect(QRect(line_left, line_top - ampl - pen_width, line_width+pen_width/2, line_top + ampl + pen_width));
         painter.drawPath(path);
         painter.restore();
+
+        // 绘制文字
+        QFont nft = line_edit->font();
+        painter.setPen(QPen(grayed_color, 1));
+        if (line_edit->text().isEmpty() && !line_edit->hasFocus()) // 文字在编辑框中
+        {
+            painter.setFont(nft);
+
+            for (int i = 0; i < label_text.size(); i++)
+            {
+                double x = label_in_poss.at(i).x();
+                double perc = (x - paint_left) / total_len;
+                double y = path.pointAtPercent(perc).y();
+                painter.drawText(QPointF(x, y + label_in_poss.at(i).y() - line_top), label_text.at(i));
+            }
+        }
+        else // 文字在编辑框上面
+        {
+            QFont sfm = nft;
+            sfm.setPointSizeF(nft.pointSize() / label_scale);
+            painter.setFont(sfm);
+
+            for (int i = 0; i < label_text.size(); i++)
+            {
+                double x = label_up_poss.at(i).x();
+                double perc = (x - paint_left) / total_len;
+                double y = path.pointAtPercent(perc).y();
+                painter.drawText(QPointF(x, y + label_up_poss.at(i).y() - line_top), label_text.at(i));
+            }
+
+            // 输入的曲线
+            QString display_text = line_edit->displayText();
+            QFontMetrics fm(nft);
+            if (!display_text.isEmpty())
+            {
+                painter.setFont(nft);
+                painter.setPen(line_edit->palette().color(QPalette::Text));
+                QMargins margins = line_edit->textMargins();
+                QPointF pos = line_edit->geometry().bottomLeft();
+                pos = QPointF(pos.x() + 2 + margins.left(), pos.y() - margins.bottom() + fm.height() - fm.lineSpacing());
+                for (int i = 0; i < display_text.size(); i++)
+                {
+                    double x = pos.x() + fm.horizontalAdvance(display_text.left(i));
+                    double perc = (x - paint_left) / total_len;
+                    double y = path.pointAtPercent(perc).y();
+                    painter.drawText(QPointF(x, y + pos.y() - line_top), display_text.at(i));
+                }
+            }
+
+        }
     }
 }
 

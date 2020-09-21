@@ -7,7 +7,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    ui->widget->setLabelText("usernamenick");
+    ui->widget->setLabelText("username");
     ui->widget_2->setLabelText("password");
 }
 

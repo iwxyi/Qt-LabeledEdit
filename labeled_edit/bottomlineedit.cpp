@@ -7,6 +7,12 @@ BottomLineEdit::BottomLineEdit(QWidget *parent) : QLineEdit(parent)
     setStyleSheet("#BottomLineEdit { background: transparent; border: none;}");
 }
 
+void BottomLineEdit::setViewShowed(bool show)
+{
+    this->show_view = show;
+    update();
+}
+
 void BottomLineEdit::focusInEvent(QFocusEvent *e)
 {
     QLineEdit::focusInEvent(e);
@@ -17,4 +23,11 @@ void BottomLineEdit::focusOutEvent(QFocusEvent *e)
 {
     QLineEdit::focusOutEvent(e);
     emit signalFocusOut();
+}
+
+void BottomLineEdit::paintEvent(QPaintEvent *e)
+{
+    if (!show_view)
+        return ;
+    QLineEdit::paintEvent(e);
 }
