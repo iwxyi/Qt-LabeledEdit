@@ -77,9 +77,6 @@ private:
     const int wrong_duration = 5000;
     const int correct_duration = 600;
 
-    QList<double> wave_vs; // 波浪的点的动画
-    int point_index;
-
 };
 
 #endif // LABELEDEDIT_H

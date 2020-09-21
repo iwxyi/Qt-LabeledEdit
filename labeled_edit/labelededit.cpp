@@ -62,23 +62,7 @@ void LabeledEdit::showCorrect()
 void LabeledEdit::showWrong()
 {
     // 预生成点的路径
-    point_index = 0;
-    wave_vs.clear();
-    double down_dis = qrand() % line_edit->height() / 2;
-    const int wrong_right_frame = 50;
-    const int t = line_edit->geometry().bottom();
-    for (int i = 0; i < wrong_right_frame; i++)
-    {
-        wave_vs.append(t + down_dis * i / wrong_right_frame);
-    }
-    for (int i = wrong_right_frame; i >= -wrong_right_frame; i--)
-    {
-        wave_vs.append(t + down_dis * i / wrong_right_frame);
-    }
-    for (int i = -wrong_right_frame; i <= 0; i++)
-    {
-        wave_vs.append(t + down_dis * i / wrong_right_frame);
-    }
+
 
 
     // 开始动画
@@ -397,18 +381,49 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     {
         painter.setPen(QPen(accent_color, pen_width));
         painter.setRenderHint(QPainter::Antialiasing, true);
-        int index = wrong_prog;
-        int size = wave_vs.size();
-        QPointF prev(line_right, index >= size ? line_top : wave_vs.at(index));
+        QPainterPath path;
 
-        for (int x = line_right-1; x >= line_left; x--)
+        QFont ft = line_edit->font();
+        QFontMetrics fm(ft);
+        const int max_prog = 100;
+        const int step1 = 20;
+        const int step2 = 30;
+        const int step3 = 40;
+        const int step4 = 60;
+        const double wave_speed = 40; // 40个单位全程移动完
+        const int ampl = fm.height();
+        const int ctrl_len = fm.height();
+        const int hor = line_top; // 水平线位置
+        path.moveTo(line_left, line_top);
+        if (wrong_prog <= step1) // 右边下移
         {
-            index--;
-            QPointF pos(x, ( index < 0 || index >= size) ? line_top : wave_vs.at(index));
-            painter.drawLine(prev, pos);
-            prev = pos;
+            double step_prog = (double)wrong_prog / step1;
+            int right_y = hor + ampl * step_prog;
+            int ctrl1x = line_right - wave_speed / max_prog * step_prog * line_width; // 相对于line_left的x
+            path.cubicTo(QPoint(line_left + ctrl_len, hor),
+                         QPoint(ctrl1x - ctrl_len, hor),
+                         QPoint(ctrl1x, hor));
+            path.cubicTo(QPoint(ctrl1x + ctrl_len, hor),
+                         QPoint(line_right - ctrl_len, right_y),
+                         QPoint(line_right, right_y));
         }
+        else if (wrong_prog <= step2)
+        {
+            double step_prog = (double)(wrong_prog-step1) / (step2-step1);
+            int right_y = hor + ampl - ampl * step_prog;
+            int ctrl1x = line_right - wave_speed / max_prog * step_prog * line_width; // 相对于line_left的x
+            path.cubicTo(QPoint(line_left + ctrl_len, hor),
+                         QPoint(ctrl1x - ctrl_len, hor),
+                         QPoint(ctrl1x, hor));
+            path.cubicTo(QPoint(ctrl1x + ctrl_len, hor),
+                         QPoint(line_right - ctrl_len, right_y),
+                         QPoint(line_right, right_y));
+        }
+        else if (wrong_prog < step3)
+        {
 
+        }
+        painter.drawPath(path);
     }
 }
 
