@@ -22,6 +22,8 @@ class LabeledEdit : public QWidget
     Q_PROPERTY(int CorrectProg READ getCorrectProg WRITE setCorrectProg)
 public:
     LabeledEdit(QWidget *parent = nullptr);
+    LabeledEdit(QString label, QWidget* parent = nullptr);
+    LabeledEdit(QString label, QString def, QWidget* parent = nullptr);
 
     void setLabelText(QString text);
     void setAccentColor(QColor color);
@@ -54,7 +56,7 @@ private:
 
 private:
     BottomLineEdit* line_edit;
-    QSpacerItem* label_spacer;
+    QSpacerItem* up_spacer;
     QSpacerItem* correct_spacer;
 
     QColor grayed_color; // 没有聚焦的颜色：下划线+文字

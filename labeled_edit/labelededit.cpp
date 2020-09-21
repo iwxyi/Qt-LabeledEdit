@@ -3,10 +3,10 @@
 LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
 {
     line_edit = new BottomLineEdit(this);
-    label_spacer = new QSpacerItem(0, 0);
+    up_spacer = new QSpacerItem(0, 0);
 
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->addSpacerItem(label_spacer);
+    layout->addSpacerItem(up_spacer);
     layout->addWidget(line_edit);
 
     connect(line_edit, &BottomLineEdit::signalFocusIn, this, [=]{
@@ -16,6 +16,8 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
         startAnimation("LabelProg", getLabelProg(), 100, label_duration, QEasingCurve::Linear);
     });
     connect(line_edit, &BottomLineEdit::signalFocusOut, this, [=]{
+        if (line_edit->hasFocus()) // 比如右键菜单，还是算作聚焦的
+            return ;
         connect(startAnimation("LosesProg", getLosesProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
             if (!line_edit->hasFocus())
                 focus_prog = 0;
@@ -42,6 +44,16 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
     });
 
     this->setFocusProxy(line_edit);
+}
+
+LabeledEdit::LabeledEdit(QString label, QWidget *parent) : LabeledEdit(parent)
+{
+    setLabelText(label);
+}
+
+LabeledEdit::LabeledEdit(QString label, QString def, QWidget *parent) : LabeledEdit(label, parent)
+{
+    line_edit->setText(def);
 }
 
 void LabeledEdit::setLabelText(QString text)
@@ -90,8 +102,9 @@ void LabeledEdit::adjustBlank()
     sft.setPointSizeF(sft.pointSize() / label_scale);
     QFontMetricsF sfm(sft);
     double label_sh = sfm.lineSpacing();
-
-    label_spacer->changeSize(0, static_cast<int>(label_sh));
+    double wave_h = nfm.height() * 2 / 3;
+    up_spacer->changeSize(0, static_cast<int>(label_sh - label_sh/1.5));
+    layout()->setMargin(static_cast<int>(wave_h));
 
     // 缓存文字的位置
     label_in_poss.clear();
@@ -122,12 +135,11 @@ void LabeledEdit::resizeEvent(QResizeEvent *event)
 void LabeledEdit::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    // painter.drawRect(0,0,width()-1,height()-1);
+    // painter.drawRect(0,0,width()-1,height()-1); // 测试用
 
     // 绘制标签
     const double PI = 3.141592;
     QRect geom = line_edit->geometry();
-
 
     const int line_left = geom.left(), line_right = geom.right();
     const int line_top = geom.bottom(), line_width = geom.width();
@@ -436,7 +448,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 if (perc < 0)
                     perc = 0;
                 double y = path.pointAtPercent(perc).y();
-                painter.drawText(QPointF(x, y + label_up_poss.at(i).y() - line_top), label_text.at(i));
+                painter.drawText(QPointF(x, label_up_poss.at(i).y() + (y-line_top)/label_scale), label_text.at(i));
             }
 
             // 输入的曲线
