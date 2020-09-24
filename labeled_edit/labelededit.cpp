@@ -145,7 +145,7 @@ void LabeledEdit::resizeEvent(QResizeEvent *event)
 void LabeledEdit::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-//    painter.drawRect(0,0,width()-1,height()-1); // 测试用
+//    painter.drawRect(0,0,width()-1,height()-1); // 测试边距
 
     // 绘制标签
     const double PI = 3.141592;
@@ -183,10 +183,9 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             const int blank_len = fm.horizontalAdvance(" ") / 2; // 空白点的宽度
             const int move_left = short_len / 2;
             const int step1 = 40;
-            // const int step2 = 60;
-            const int step3 = 75;
-            const int step4 = 85;
-            const int step5 = 100;
+            const int step2 = 75;
+            const int step3 = 85;
+            const int step4 = 100;
 
             // 绘制两截的线
             auto paint2Line = [&](int blank_left, int right_margin) {
@@ -224,10 +223,10 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             }
             else // 延伸、旋转
             {
-                if (correct_prog <= step3)
+                if (correct_prog <= step2)
                 {
                     // 画两截的线
-                    int move_dis = (short_len + move_left + blank_len) * (correct_prog - step1) / (step3 - step1); // 相对于上一阶段的最左边
+                    int move_dis = (short_len + move_left + blank_len) * (correct_prog - step1) / (step2 - step1); // 相对于上一阶段的最左边
                     int blank_left = line_right - (short_len + move_left + blank_len) + move_dis;
                     paint2Line(blank_left, move_left);
                 }
@@ -242,13 +241,13 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 double radius = short_len / 2.0;
                 const int offset = 2; // 线宽的偏移
                 double angle_turned = 0;
-                if (correct_prog >= step1 && correct_prog <= step3) // 画弧线
+                if (correct_prog >= step1 && correct_prog <= step2) // 画弧线
                 {
                     // 出现的弧线
                     QRect rect(line_right - short_len, line_top-short_len, short_len, short_len);
                     painter.setPen(QPen(accent_color, pen_width));
                     double angle_span = 360/PI;
-                    double angle = -90 + (150+angle_span) * (correct_prog - step1) / (step3 - step1);
+                    double angle = -90 + (150+angle_span) * (correct_prog - step1) / (step2 - step1);
                     if (angle - angle_span < -90) // 一开始的
                         angle_span = angle+90;
                     if (angle > 60) // 准备转弯
@@ -260,7 +259,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     painter.drawArc(rect, static_cast<int>(angle * 16), static_cast<int>(-angle_span * 16));
                 }
 
-                if (correct_prog >= step3)
+                if (correct_prog >= step2)
                     angle_turned = 360/PI;
                 if (angle_turned > 0)
                 {
@@ -276,25 +275,11 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     painter.drawLine(pos2, pos);
                 }
 
-                // 为了保持线条长度一致，已经放入了step3中
-                /*if (correct_prog >= step2) // 画勾的右半部分
-                {
-                    QPointF pos2(line_right - radius/2, line_top - radius - radius/2 * sin(PI/3)-3);   // 右上角
-                    QPointF pos1(line_right - radius*3/2 + offset, line_top - radius + radius/2 * sin(PI/3)); // 左下角
-                    double cent = (correct_prog - step2) / static_cast<double>(step4 - step2);
-                    if (cent > 1)
-                        cent = 1;
-                    double x = pos2.x() + (pos1.x() - pos2.x()) * cent;
-                    double y = pos2.y() + (pos1.y() - pos2.y()) * cent;
-                    QPointF pos(x, y);
-                    painter.drawLine(pos2, pos);
-                }*/
-
-                if (correct_prog >= step4) // 画勾的左半部分
+                if (correct_prog >= step3) // 画勾的左半部分
                 {
                     QPointF pos2(line_right - radius*3/2 + offset, line_top - radius + radius/2 * sin(PI/3)); // 右下角
                     QPointF pos1(line_right - short_len + offset, line_top - radius);
-                    double cent = (correct_prog - step4) / static_cast<double>(step5 - step4);
+                    double cent = (correct_prog - step3) / static_cast<double>(step4 - step3);
                     if (cent > 1)
                         cent = 1;
                     double x = pos2.x() + (pos1.x() - pos2.x()) * cent;
@@ -302,7 +287,6 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     QPointF pos(x, y);
                     painter.drawLine(pos2, pos);
                 }
-//                painter.drawRect(line_right - short_len, line_top - short_len, short_len, short_len);
             }
         }
 
