@@ -16,15 +16,18 @@ DEFINES += QT_DEPRECATED_WARNINGS
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 INCLUDEPATH += \
-    labeled_edit/
+    labeled_edit/ \
+    interactive_buttons/
 
 SOURCES += \
+    interactive_buttons/interactivebuttonbase.cpp \
     labeled_edit/bottomlineedit.cpp \
     labeled_edit/labelededit.cpp \
     main.cpp \
     mainwindow.cpp
 
 HEADERS += \
+    interactive_buttons/interactivebuttonbase.h \
     labeled_edit/bottomlineedit.h \
     labeled_edit/labelededit.h \
     mainwindow.h

@@ -2,6 +2,7 @@
 
 LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
 {
+    setObjectName("LabeledEdit");
     line_edit = new BottomLineEdit(this);
     up_spacer = new QWidget(this);
     down_spacer = new QWidget(this);
@@ -83,7 +84,7 @@ void LabeledEdit::showWrong()
     line_edit->setViewShowed(false);
     // 开始动画
     correct_prog = 0;
-    connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::Linear), &QPropertyAnimation::finished, this, [=]{
+    connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
         // 只显示波浪线一次
         wrong_prog = 0;
         line_edit->setViewShowed(true);

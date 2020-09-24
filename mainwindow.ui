@@ -16,7 +16,7 @@
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <property name="spacing">
-     <number>6</number>
+     <number>0</number>
     </property>
     <item>
      <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -35,7 +35,7 @@
      </layout>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton_2">
+     <widget class="InteractiveButtonBase" name="pushButton_2">
       <property name="focusPolicy">
        <enum>Qt::NoFocus</enum>
       </property>
@@ -45,7 +45,7 @@
      </widget>
     </item>
     <item>
-     <widget class="QPushButton" name="pushButton">
+     <widget class="InteractiveButtonBase" name="pushButton">
       <property name="focusPolicy">
        <enum>Qt::NoFocus</enum>
       </property>
@@ -74,6 +74,11 @@
    <extends>QWidget</extends>
    <header location="global">labelededit.h</header>
    <container>1</container>
+  </customwidget>
+  <customwidget>
+   <class>InteractiveButtonBase</class>
+   <extends>QPushButton</extends>
+   <header location="global">interactivebuttonbase.h</header>
   </customwidget>
  </customwidgets>
  <resources/>
