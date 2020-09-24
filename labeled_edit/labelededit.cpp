@@ -4,10 +4,13 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
 {
     line_edit = new BottomLineEdit(this);
     up_spacer = new QSpacerItem(0, 0);
+    down_spacer = new QSpacerItem(0, 0);
 
     QVBoxLayout* layout = new QVBoxLayout(this);
     layout->addSpacerItem(up_spacer);
     layout->addWidget(line_edit);
+    layout->addSpacerItem(down_spacer);
+    layout->setSpacing(0);
 
     connect(line_edit, &BottomLineEdit::signalFocusIn, this, [=]{
         connect(startAnimation("FocusProg", getFocusProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
@@ -101,10 +104,11 @@ void LabeledEdit::adjustBlank()
     QFont sft = nft;
     sft.setPointSizeF(sft.pointSize() / label_scale);
     QFontMetricsF sfm(sft);
-    double label_sh = sfm.lineSpacing();
+    double label_sh = sfm.height();
     double wave_h = nfm.height() * 2 / 3;
-    up_spacer->changeSize(0, static_cast<int>(label_sh - label_sh/1.5));
-    layout()->setMargin(static_cast<int>(wave_h));
+    up_spacer->changeSize(0, static_cast<int>(label_sh*1.5));
+    down_spacer->changeSize(0, static_cast<int>(wave_h));
+//    layout()->setMargin(0);
 
     // 缓存文字的位置
     label_in_poss.clear();
@@ -135,7 +139,7 @@ void LabeledEdit::resizeEvent(QResizeEvent *event)
 void LabeledEdit::paintEvent(QPaintEvent *)
 {
     QPainter painter(this);
-    // painter.drawRect(0,0,width()-1,height()-1); // 测试用
+//    painter.drawRect(0,0,width()-1,height()-1); // 测试用
 
     // 绘制标签
     const double PI = 3.141592;
