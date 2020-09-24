@@ -35,4 +35,4 @@ else
 
 如果多个输入框一起，可能看起来会比较分散，可以把外部layout的`spacing`设置为0。
 
-若不需要错误波浪线`showWrong()`，可以把上下两个QSpacerItem高度改为0
+若不需要错误波浪线`showWrong()`，可以把上下两个space控件高度改为0

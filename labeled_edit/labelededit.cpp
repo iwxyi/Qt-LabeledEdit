@@ -3,14 +3,17 @@
 LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
 {
     line_edit = new BottomLineEdit(this);
-    up_spacer = new QSpacerItem(0, 0);
-    down_spacer = new QSpacerItem(0, 0);
+    up_spacer = new QWidget(this);
+    down_spacer = new QWidget(this);
 
     QVBoxLayout* layout = new QVBoxLayout(this);
-    layout->addSpacerItem(up_spacer);
+    layout->addWidget(up_spacer);
     layout->addWidget(line_edit);
-    layout->addSpacerItem(down_spacer);
+    layout->addWidget(down_spacer);
     layout->setSpacing(0);
+
+    up_spacer->setMinimumWidth(1);
+    down_spacer->setMinimumWidth(1);
 
     connect(line_edit, &BottomLineEdit::signalFocusIn, this, [=]{
         connect(startAnimation("FocusProg", getFocusProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
@@ -106,16 +109,18 @@ void LabeledEdit::adjustBlank()
     QFontMetricsF sfm(sft);
     double label_sh = sfm.height();
     double wave_h = nfm.height() * 2 / 3;
-    up_spacer->changeSize(0, static_cast<int>(label_sh*1.5));
-    down_spacer->changeSize(0, static_cast<int>(wave_h));
-//    layout()->setMargin(0);
+
+    QRect geom = line_edit->geometry();
+    double big_margin = (geom.height() - label_nh) / 2;
+    double small_margin = big_margin / label_scale;
+
+    up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
+    down_spacer->setMinimumHeight(static_cast<int>(wave_h));
+    layout()->setMargin(0);
 
     // 缓存文字的位置
     label_in_poss.clear();
     label_up_poss.clear();
-    QRect geom = line_edit->geometry();
-    double big_margin = (geom.height() - label_nh) / 2;
-    double small_margin = big_margin / label_scale;
     QPointF in_pos(geom.left() + big_margin, geom.bottom() - big_margin);
     QPointF up_pos(geom.left() + small_margin, geom.top() - small_margin);
     label_in_poss.append(in_pos);
@@ -395,14 +400,14 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     else // 错误曲线
     {
         QFont nft = line_edit->font();
-        QFontMetrics fm(nft);
-        double n_offset = fm.horizontalAdvance(line_edit->displayText()) / 2;
+        QFontMetrics nfm(nft);
+        double n_offset = nfm.horizontalAdvance(line_edit->displayText()) / 2;
         QFont sft = nft;
         QFontMetrics sfm(sft);
         double s_offset = sfm.horizontalAdvance(label_text) * 2 / 3;
 
         // 绘制波浪线
-        const double ampl = QFontMetrics(line_edit->font()).height()*2/3; // 振幅
+        const double ampl = nfm.height()*2/3; // 振幅
         const double ctrlen = line_width / 4; // 控制点对应方向延伸的距离
         const double total_len = line_width * 4 + pen_width*2 + qMax(n_offset, s_offset);
         QPainterPath path;
@@ -463,10 +468,10 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 painter.setPen(line_edit->palette().color(QPalette::Text));
                 QMargins margins = line_edit->textMargins();
                 QPointF pos = line_edit->geometry().bottomLeft();
-                pos = QPointF(pos.x() + 2 + margins.left(), pos.y() - margins.bottom() + fm.height() - fm.lineSpacing());
+                pos = QPointF(pos.x() + 2 + margins.left(), pos.y() - margins.bottom() + nfm.height() - nfm.lineSpacing());
                 for (int i = 0; i < display_text.size(); i++)
                 {
-                    double x = pos.x() + fm.horizontalAdvance(display_text.left(i));
+                    double x = pos.x() + nfm.horizontalAdvance(display_text.left(i));
                     double perc = (x - n_offset - paint_left) / total_len;
                     if (perc < 0)
                         perc = 0;

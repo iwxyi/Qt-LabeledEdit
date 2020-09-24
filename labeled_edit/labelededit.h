@@ -56,8 +56,8 @@ private:
 
 private:
     BottomLineEdit* line_edit;
-    QSpacerItem* up_spacer;
-    QSpacerItem* down_spacer;
+    QWidget* up_spacer;
+    QWidget* down_spacer;
 
     QColor grayed_color; // 没有聚焦的颜色：下划线+文字
     QColor accent_color; // 终点颜色
