@@ -9,6 +9,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     ui->widget->setLabelText("username");
     ui->widget_2->setLabelText("password");
+    ui->widget_2->editor()->setEchoMode(QLineEdit::EchoMode::Password);
 }
 
 MainWindow::~MainWindow()

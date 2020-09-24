@@ -9,6 +9,15 @@ BottomLineEdit::BottomLineEdit(QWidget *parent) : QLineEdit(parent)
 
 void BottomLineEdit::setViewShowed(bool show)
 {
+    /*if (!show)
+    {
+        this->real_echo = this->echoMode();
+        this->setEchoMode(QLineEdit::EchoMode::NoEcho);
+    }
+    else
+    {
+        this->setEchoMode(this->real_echo);
+    }*/
     this->show_view = show;
     update();
 }
