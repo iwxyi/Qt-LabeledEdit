@@ -31,6 +31,9 @@ if (le->edit()->text() == "true")
     le->showCorrect(); // 正确的勾
 else
     le->showWrong(); // 错误的波浪线
+
+le->showLoading(); // 开启加载动画
+le->hideLoading(); // 关闭加载动画（调用 loadingCorrect/Wrong 时自动关闭）
 ```
 
 

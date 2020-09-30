@@ -35,24 +35,49 @@
      </layout>
     </item>
     <item>
-     <widget class="InteractiveButtonBase" name="pushButton_2">
-      <property name="focusPolicy">
-       <enum>Qt::NoFocus</enum>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetMinimumSize</enum>
       </property>
-      <property name="text">
-       <string>correct</string>
-      </property>
-     </widget>
+      <item>
+       <widget class="InteractiveButtonBase" name="pushButton_2">
+        <property name="focusPolicy">
+         <enum>Qt::NoFocus</enum>
+        </property>
+        <property name="text">
+         <string>correct</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="InteractiveButtonBase" name="pushButton">
+        <property name="focusPolicy">
+         <enum>Qt::NoFocus</enum>
+        </property>
+        <property name="text">
+         <string>error</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
     <item>
-     <widget class="InteractiveButtonBase" name="pushButton">
-      <property name="focusPolicy">
-       <enum>Qt::NoFocus</enum>
-      </property>
-      <property name="text">
-       <string>error</string>
-      </property>
-     </widget>
+     <layout class="QHBoxLayout" name="horizontalLayout_2">
+      <item>
+       <widget class="InteractiveButtonBase" name="pushButton_3">
+        <property name="text">
+         <string>loading</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="InteractiveButtonBase" name="pushButton_4">
+        <property name="text">
+         <string>finish</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>

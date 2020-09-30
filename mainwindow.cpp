@@ -41,3 +41,27 @@ void MainWindow::on_pushButton_clicked()
         ui->widget_2->showWrong();
     }
 }
+
+void MainWindow::on_pushButton_3_clicked()
+{
+    if (ui->widget->editor()->hasFocus())
+    {
+        ui->widget->showLoading();
+    }
+    else if (ui->widget_2->editor()->hasFocus())
+    {
+        ui->widget_2->showLoading();
+    }
+}
+
+void MainWindow::on_pushButton_4_clicked()
+{
+    if (ui->widget->editor()->hasFocus())
+    {
+        ui->widget->hideLoading();
+    }
+    else if (ui->widget_2->editor()->hasFocus())
+    {
+        ui->widget_2->hideLoading();
+    }
+}

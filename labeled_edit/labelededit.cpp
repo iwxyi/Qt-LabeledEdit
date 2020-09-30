@@ -75,12 +75,18 @@ void LabeledEdit::setAccentColor(QColor color)
 
 void LabeledEdit::showCorrect()
 {
+    if (show_loading_prog)
+        hideLoading();
+    // 错误与正确只能选一个
     wrong_prog = 0;
     startAnimation("CorrectProg", getCorrectProg(), 100, correct_duration, QEasingCurve::Linear);
 }
 
 void LabeledEdit::showWrong()
 {
+    if (show_loading_prog)
+        hideLoading();
+    // 隐藏现有文字
     line_edit->setViewShowed(false);
     // 开始动画
     correct_prog = 0;
@@ -88,6 +94,35 @@ void LabeledEdit::showWrong()
         // 只显示波浪线一次
         wrong_prog = 0;
         line_edit->setViewShowed(true);
+    });
+}
+
+void LabeledEdit::showLoading()
+{
+    if (correct_prog)
+        startAnimation("CorrectProg", getCorrectProg(), 0, correct_duration, QEasingCurve::OutQuad);
+
+    if (loading_timer == nullptr)
+    {
+        loading_timer = new QTimer(this);
+        loading_timer->setInterval(80);
+        connect(loading_timer, &QTimer::timeout, this, [=]{
+            loading_index++;
+            update();
+//          repaint(loading_rect);
+        });
+    }
+    loading_timer->start();
+    startAnimation("ShowLoadingProg", getShowLoadingProg(), 100, show_loading_duration, QEasingCurve::QEasingCurve::OutBack);
+}
+
+void LabeledEdit::hideLoading()
+{
+    connect(startAnimation("HideLoadingProg", getHideLoadingProg(), 100, hide_loading_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
+        show_loading_prog = 0;
+        hide_loading_prog = 0;
+        if (loading_timer)
+            loading_timer->stop();
     });
 }
 
@@ -134,6 +169,11 @@ void LabeledEdit::adjustBlank()
         label_in_poss.append(QPointF(in_pos + QPointF(in_w, 0)));
         label_up_poss.append(QPointF(up_pos + QPointF(up_w, 0)));
     }
+
+    // 菊花的位置
+    loading_inner = label_nh / 4;
+    loading_outer = label_nh * 3 / 8;
+    loading_rect = QRectF(geom.right() - label_nh, geom.bottom() - label_nh, label_nh, label_nh).toRect();
 }
 
 void LabeledEdit::resizeEvent(QResizeEvent *event)
@@ -467,6 +507,39 @@ void LabeledEdit::paintEvent(QPaintEvent *)
 
         }
     }
+
+    // 绘制加载中动画
+    if (show_loading_prog || hide_loading_prog)
+    {
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        // 半径与 show_loading_prog 有关，线条长度与 hide_loading_prog 有关
+        double inner = loading_inner * show_loading_prog / 100;
+        double outer = loading_outer * show_loading_prog / 100;
+        inner += (outer - inner) * hide_loading_prog / 100;
+        QPoint center = loading_rect.center();
+        const int per_angle = 360 / 8; // 每一片菊花花瓣之间的夹角
+        QColor c = accent_color;
+
+        int current_index = loading_index % loading_petal; // 当前的index（颜色最浓）
+        int angle = current_index * per_angle; // 要计算的旋转角
+        int alpha = 0xff; // 要绘制的不透明度
+        for (int i = 0; i < loading_petal; i++)
+        {
+            // 绘制每一片菊花
+            double radian = angle * PI / 180;
+            QPointF inn(center.x() + inner * sin(radian),
+                        center.y() + inner * cos(radian));
+            QPointF out(center.x() + outer * sin(radian),
+                        center.y() + outer * cos(radian));
+
+            alpha -= 0xaa / loading_petal; // 每次减少一点透明度（不能减到0，否则看起来怪怪的）
+            c.setAlpha(alpha);
+            painter.setPen(QPen(c, pen_width, Qt::SolidLine, Qt::RoundCap));
+
+            painter.drawLine(inn, out);
+            angle += per_angle; // 颜色逐渐变淡
+        }
+    }
 }
 
 QPropertyAnimation* LabeledEdit::startAnimation(QByteArray name, double start, double end, int duration, QEasingCurve curve)
@@ -534,4 +607,26 @@ void LabeledEdit::setCorrectProg(int x)
 int LabeledEdit::getCorrectProg()
 {
     return correct_prog;
+}
+
+void LabeledEdit::setShowLoadingProg(int x)
+{
+    this->show_loading_prog = x;
+    update();
+}
+
+int LabeledEdit::getShowLoadingProg()
+{
+    return show_loading_prog;
+}
+
+void LabeledEdit::setHideLoadingProg(int x)
+{
+    this->hide_loading_prog = x;
+    update();
+}
+
+int LabeledEdit::getHideLoadingProg()
+{
+    return hide_loading_prog;
 }
