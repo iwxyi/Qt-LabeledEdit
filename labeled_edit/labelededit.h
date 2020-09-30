@@ -34,8 +34,8 @@ public:
     void adjustBlank();
 
     void setLabelText(QString text);
-    void setMessageText(QString text);
-    void setMessageText(QString text, QColor color);
+    void setMsgText(QString text);
+    void setMsgText(QString text, QColor color);
     void setTipText(QString text);
     void setTipText(QString text, QColor color);
     void setAccentColor(QColor color);

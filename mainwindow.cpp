@@ -25,12 +25,12 @@ void MainWindow::on_pushButton_2_clicked()
     if (ui->widget->editor()->hasFocus())
     {
         ui->widget->showCorrect();
-        ui->widget->setMessageText("");
+        ui->widget->setMsgText("");
     }
     else if (ui->widget_2->editor()->hasFocus())
     {
         ui->widget_2->showCorrect();
-        ui->widget_2->setMessageText("");
+        ui->widget_2->setMsgText("");
     }
 }
 
@@ -39,12 +39,12 @@ void MainWindow::on_pushButton_clicked()
     if (ui->widget->editor()->hasFocus())
     {
         ui->widget->showWrong();
-        ui->widget->setMessageText("用户名已存在");
+        ui->widget->setMsgText("用户名已存在");
     }
     else if (ui->widget_2->editor()->hasFocus())
     {
         ui->widget_2->showWrong();
-        ui->widget_2->setMessageText("密码错误，您还剩余2次机会");
+        ui->widget_2->setMsgText("密码错误，您还剩余2次机会");
     }
 }
 

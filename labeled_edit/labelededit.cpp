@@ -118,12 +118,12 @@ void LabeledEdit::setLabelText(QString text)
     this->label_text = text;
 }
 
-void LabeledEdit::setMessageText(QString text)
+void LabeledEdit::setMsgText(QString text)
 {
-    setMessageText(text, accent_color);
+    setMsgText(text, accent_color);
 }
 
-void LabeledEdit::setMessageText(QString text, QColor color)
+void LabeledEdit::setMsgText(QString text, QColor color)
 {
     if (!msg_text.isEmpty())
         hideMsg();
@@ -167,6 +167,7 @@ void LabeledEdit::showWrong()
         hideLoading();
     if (tip_prog)
         hideTip();
+
     // 隐藏现有文字
     line_edit->setViewShowed(false);
     // 开始动画
@@ -181,6 +182,7 @@ void LabeledEdit::showWrong()
         else if (entering)
             showTip();
     });
+
     // 随着错误曲线隐藏文字
     if (!msg_text.isEmpty())
     {
@@ -190,7 +192,7 @@ void LabeledEdit::showWrong()
 
 void LabeledEdit::showWrong(QString msg)
 {
-    setMessageText(msg);
+    setMsgText(msg);
     showWrong();
 }
 
@@ -249,7 +251,10 @@ void LabeledEdit::hideMsg()
     msg_hiding = msg_text;
     msg_text = "";
     msg_show_prog = 0;
+    if (getMsgHideProg() == 0)
+        setMsgHideProg(1);
     connect(startAnimation("MsgHideProg", getMsgHideProg(), 100, msg_hide_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
+        // 只隐藏一次就清空
         msg_hide_prog = 0;
         msg_hiding = "";
     });
