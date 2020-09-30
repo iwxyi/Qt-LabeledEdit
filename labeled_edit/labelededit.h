@@ -32,6 +32,8 @@ public:
 
     BottomLineEdit* editor();
     void adjustBlank();
+    QString text();
+    void setText(QString text);
 
     void setLabelText(QString text);
     void setMsgText(QString text);

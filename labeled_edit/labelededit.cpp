@@ -79,6 +79,8 @@ void LabeledEdit::adjustBlank()
 
     up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
     down_spacer->setMinimumHeight(static_cast<int>(wave_h));
+    line_edit->setMinimumHeight(nfm.lineSpacing() + pen_width);
+    this->setMinimumHeight(up_spacer->height() + down_spacer->height() + line_edit->height());
     layout()->setMargin(0);
 
     // 缓存文字的位置
@@ -103,6 +105,20 @@ void LabeledEdit::adjustBlank()
     loading_rect = QRectF(geom.right() - label_nh, geom.bottom() - label_nh, label_nh, label_nh).toRect();
 }
 
+QString LabeledEdit::text()
+{
+    return line_edit->text();
+}
+
+void LabeledEdit::setText(QString text)
+{
+    line_edit->setText(text);
+    if (label_prog <= 0.0001)
+    {
+        startAnimation("LabelProg", getLabelProg(), 100, label_duration, QEasingCurve::Linear);
+    }
+}
+
 LabeledEdit::LabeledEdit(QString label, QWidget *parent) : LabeledEdit(parent)
 {
     setLabelText(label);
@@ -116,6 +132,7 @@ LabeledEdit::LabeledEdit(QString label, QString def, QWidget *parent) : LabeledE
 void LabeledEdit::setLabelText(QString text)
 {
     this->label_text = text;
+    adjustBlank();
 }
 
 void LabeledEdit::setMsgText(QString text)
@@ -192,8 +209,8 @@ void LabeledEdit::showWrong()
 
 void LabeledEdit::showWrong(QString msg)
 {
-    setMsgText(msg);
     showWrong();
+    setMsgText(msg);
 }
 
 void LabeledEdit::showLoading()
