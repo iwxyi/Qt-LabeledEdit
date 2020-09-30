@@ -185,7 +185,7 @@ void LabeledEdit::hideTip()
 
 void LabeledEdit::showMsg()
 {
-    startAnimation("MsgShowProg", getMsgShowProg(), 100, msg_show_duration, QEasingCurve::InQuad);
+    startAnimation("MsgShowProg", getMsgShowProg(), 100, msg_show_duration, QEasingCurve::OutQuad);
 }
 
 /**
@@ -627,24 +627,33 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     {
         QFont sft = line_edit->font();
         sft.setPointSizeF(sft.pointSize() / label_scale - pen_width/2);
+        QFontMetricsF sfm(sft);
         painter.setFont(sft);
         painter.setPen(accent_color);
 
-        if (msg_show_prog) // 绘制从右边过来的文字
+        if (msg_show_prog != 100) // 绘制从右边过来的文字
         {
-            double x = label_up_poss.first().x();
-            double y = line_top + QFontMetricsF(sft).height();
+            const double tx = label_up_poss.first().x();
+            const double ty = line_top + QFontMetricsF(sft).height();
 
-            x = x + (line_right - x) * (100 - msg_show_prog) / 100;
-            QPointF pos(x, y);
-            painter.drawText(pos, msg_text);
-
-            /*for (int i = 0; i < msg_text.size(); i++)
+            // double dis = line_width / msg_text.size();
+            double start_prog = 60.0;
+            double per_prog = 40.0 / msg_text.size();
+            for (int i = 0; i < msg_text.size(); i++)
             {
-
-            }*/
+                double my_prog = start_prog + per_prog * i;
+                double prop = msg_show_prog / my_prog;
+                if (prop > 1)
+                    prop = 1;
+                // double right = line_right + dis * i; // 非线性延迟出现
+                double len = sfm.horizontalAdvance(msg_text.left(i));
+                double right = line_right + len; // 非线性延迟出现
+                double left = tx + len;
+                double x = left + (right - left) * (1 - prop);
+                painter.drawText(QPointF(x, ty), msg_text.at(i));
+            }
         }
-        else // 绘制普通文字
+        else
         {
             QPointF pos(label_up_poss.first().x(), line_top + QFontMetricsF(sft).height());
             painter.drawText(pos, msg_text);

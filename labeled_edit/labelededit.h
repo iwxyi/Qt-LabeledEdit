@@ -131,7 +131,7 @@ private:
     const int show_loading_duration = 600;
     const int hide_loading_duration = 200;
     const int tip_duration = 400;
-    const int msg_show_duration = 300;
+    const int msg_show_duration = 600;
     const int msg_hide_duration = 200;
 };
 
