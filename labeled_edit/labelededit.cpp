@@ -80,7 +80,7 @@ void LabeledEdit::adjustBlank()
     up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
     down_spacer->setMinimumHeight(static_cast<int>(wave_h));
     line_edit->setMinimumHeight(nfm.lineSpacing() + pen_width);
-    this->setMinimumHeight(up_spacer->height() + down_spacer->height() + line_edit->height());
+    this->setMinimumHeight(up_spacer->minimumHeight() + down_spacer->minimumHeight() + line_edit->minimumHeight());
     layout()->setMargin(0);
 
     // 缓存文字的位置
