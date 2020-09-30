@@ -30,12 +30,16 @@ public:
     LabeledEdit(QString label, QWidget* parent = nullptr);
     LabeledEdit(QString label, QString def, QWidget* parent = nullptr);
 
+    BottomLineEdit* editor();
+    void adjustBlank();
+
     void setLabelText(QString text);
     void setMessageText(QString text);
     void setMessageText(QString text, QColor color);
     void setTipText(QString text);
     void setTipText(QString text, QColor color);
     void setAccentColor(QColor color);
+
     void showCorrect();
     void hideCorrect();
     void showWrong();
@@ -43,13 +47,11 @@ public:
     void showLoading();
     void hideLoading();
 
+private:
     void showTip();
     void hideTip();
     void showMsg();
     void hideMsg();
-
-    BottomLineEdit* editor();
-    void adjustBlank();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -132,7 +134,7 @@ private:
     const int hide_loading_duration = 200;
     const int tip_duration = 400;
     const int msg_show_duration = 600;
-    const int msg_hide_duration = 200;
+    const int msg_hide_duration = 300;
 };
 
 #endif // LABELEDEDIT_H

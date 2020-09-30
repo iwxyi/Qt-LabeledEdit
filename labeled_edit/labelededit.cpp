@@ -53,6 +53,56 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
     this->setFocusProxy(line_edit);
 }
 
+BottomLineEdit *LabeledEdit::editor()
+{
+    return line_edit;
+}
+
+/**
+ * 修改控件大小或者字体大小后，调整各种间距与位置
+ */
+void LabeledEdit::adjustBlank()
+{
+    // 计算四周的空白
+    QFont nft = line_edit->font();
+    QFontMetricsF nfm(nft);
+    double label_nh = nfm.height();
+    QFont sft = nft;
+    sft.setPointSizeF(sft.pointSize() / label_scale);
+    QFontMetricsF sfm(sft);
+    double label_sh = sfm.height();
+    double wave_h = nfm.height() * 2 / 3;
+
+    QRect geom = line_edit->geometry();
+    double big_margin = (geom.height() - label_nh) / 2;
+    double small_margin = big_margin / label_scale;
+
+    up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
+    down_spacer->setMinimumHeight(static_cast<int>(wave_h));
+    layout()->setMargin(0);
+
+    // 缓存文字的位置
+    label_in_poss.clear();
+    label_up_poss.clear();
+    QPointF in_pos(geom.left() + big_margin, geom.bottom() - big_margin);
+    QPointF up_pos(geom.left() + small_margin, geom.top() - small_margin);
+    label_in_poss.append(in_pos);
+    label_up_poss.append(up_pos);
+    for (int i = 1; i < label_text.size(); i++)
+    {
+        QString t = label_text.left(i);
+        double in_w = nfm.horizontalAdvance(t);
+        double up_w = sfm.horizontalAdvance(t);
+        label_in_poss.append(QPointF(in_pos + QPointF(in_w, 0)));
+        label_up_poss.append(QPointF(up_pos + QPointF(up_w, 0)));
+    }
+
+    // 菊花的位置
+    loading_inner = label_nh / 4;
+    loading_outer = label_nh * 3 / 8;
+    loading_rect = QRectF(geom.right() - label_nh, geom.bottom() - label_nh, label_nh, label_nh).toRect();
+}
+
 LabeledEdit::LabeledEdit(QString label, QWidget *parent) : LabeledEdit(parent)
 {
     setLabelText(label);
@@ -148,6 +198,8 @@ void LabeledEdit::showLoading()
 {
     if (correct_prog)
         hideCorrect();
+    if (!msg_text.isEmpty())
+        hideMsg();
 
     if (loading_timer == nullptr)
     {
@@ -201,56 +253,6 @@ void LabeledEdit::hideMsg()
         msg_hide_prog = 0;
         msg_hiding = "";
     });
-}
-
-BottomLineEdit *LabeledEdit::editor()
-{
-    return line_edit;
-}
-
-/**
- * 修改控件大小或者字体大小后，调整各种间距与位置
- */
-void LabeledEdit::adjustBlank()
-{
-    // 计算四周的空白
-    QFont nft = line_edit->font();
-    QFontMetricsF nfm(nft);
-    double label_nh = nfm.height();
-    QFont sft = nft;
-    sft.setPointSizeF(sft.pointSize() / label_scale);
-    QFontMetricsF sfm(sft);
-    double label_sh = sfm.height();
-    double wave_h = nfm.height() * 2 / 3;
-
-    QRect geom = line_edit->geometry();
-    double big_margin = (geom.height() - label_nh) / 2;
-    double small_margin = big_margin / label_scale;
-
-    up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
-    down_spacer->setMinimumHeight(static_cast<int>(wave_h));
-    layout()->setMargin(0);
-
-    // 缓存文字的位置
-    label_in_poss.clear();
-    label_up_poss.clear();
-    QPointF in_pos(geom.left() + big_margin, geom.bottom() - big_margin);
-    QPointF up_pos(geom.left() + small_margin, geom.top() - small_margin);
-    label_in_poss.append(in_pos);
-    label_up_poss.append(up_pos);
-    for (int i = 1; i < label_text.size(); i++)
-    {
-        QString t = label_text.left(i);
-        double in_w = nfm.horizontalAdvance(t);
-        double up_w = sfm.horizontalAdvance(t);
-        label_in_poss.append(QPointF(in_pos + QPointF(in_w, 0)));
-        label_up_poss.append(QPointF(up_pos + QPointF(up_w, 0)));
-    }
-
-    // 菊花的位置
-    loading_inner = label_nh / 4;
-    loading_outer = label_nh * 3 / 8;
-    loading_rect = QRectF(geom.right() - label_nh, geom.bottom() - label_nh, label_nh, label_nh).toRect();
 }
 
 void LabeledEdit::resizeEvent(QResizeEvent *event)
@@ -591,38 +593,81 @@ void LabeledEdit::paintEvent(QPaintEvent *)
         QFont sft = line_edit->font();
         double size = sft.pointSize() / label_scale - pen_width/2;
         sft.setPointSizeF(size);
-        QFontMetricsF nfm(sft); // 这是较小的大小
+        QFontMetricsF nfm(sft); // 这是原本的大小
+        painter.setPen(accent_color);
+
+        // 方案一：分别绘制每一个文字的大小，从右往左逐个变小（不明显）（时间建议500ms）
+        /*const double start_prog = 40.0;
+        const double per_prog = start_prog / msg_hiding.size();
+        const double total_prog = 100 - start_prog;
+        const double ty = line_top + nfm.height() / 2;
+        for (int i = 0; i < msg_hiding.size(); i++)
+        {
+            double my_start_prog = per_prog * i; // 达到这个进度才开始变化
+            double prop = (total_prog - (msg_hide_prog - my_start_prog)) / total_prog;
+            if (prop < 0)
+                prop = 0;
+            else if (prop > 1)
+                prop = 1;
+
+            size = size * prop;
+            if (size >= 0.5)
+            {
+                sft.setPointSizeF(size);
+                painter.setFont(sft);
+                double y = ty + QFontMetricsF(sft).height()/2;
+
+                double w = nfm.horizontalAdvance(msg_hiding.left(i));
+                QPointF pos(label_up_poss.first().x() + w, y);
+                painter.drawText(pos, msg_hiding.at(i));
+            }
+            else if (size >= 0.1)
+            {
+                double w = nfm.horizontalAdvance(msg_hiding.left(i));
+                QPointF pos(label_up_poss.first().x() + w, ty);
+                painter.drawPoint(pos);
+            }
+
+        }*/
+
+        // 方案二：全部一起消失（时间建议300ms）
         size = size * (100-msg_hide_prog)/100;
         painter.setPen(accent_color);
         double y = line_top + nfm.height() / 2;
         if (size >= 0.5)
         {
             sft.setPointSizeF(size);
-            y += QFontMetricsF(sft).height()/2;
+            QFontMetricsF sfm(sft);
             painter.setFont(sft);
+            y += QFontMetricsF(sft).height()/2;
 
             // 从原本的大小变成一个个小点
             for (int i = 0; i < msg_hiding.size(); i++)
             {
-                double w = nfm.horizontalAdvance(msg_hiding.left(i));
-                QPointF pos(label_up_poss.first().x() + w, y);
+                QString le = msg_hiding.left(i);
+                double w = nfm.horizontalAdvance(le);
+                QString ch = msg_hiding.at(i);
+                double x = label_up_poss.first().x() + w
+                        + (nfm.horizontalAdvance(ch) - sfm.horizontalAdvance(ch) ) / 2 - 1;
+                QPointF pos(x, y);
                 painter.drawText(pos, msg_hiding.at(i));
             }
         }
         else if (size >= 0.1)
         {
-            // 画点……
+            // 文字太小了看不见，只能画点……
             for (int i = 0; i < msg_hiding.size(); i++)
             {
                 double w = nfm.horizontalAdvance(msg_hiding.left(i));
-                QPointF pos(label_up_poss.first().x() + w, y);
-                // painter.drawEllipse(pos.x()-1, pos.y()-1, size, size);
+                double cw = nfm.horizontalAdvance(msg_hiding.at(i));
+                double x = label_up_poss.first().x() + w + cw / 2-1;
+                QPointF pos(x, y);
                 painter.drawPoint(pos);
             }
         }
     }
 
-    // 绘制错误信息
+    // 逐渐显示的msg
     if (msg_show_prog && !msg_text.isEmpty())
     {
         QFont sft = line_edit->font();
@@ -647,7 +692,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                     prop = 1;
                 // double right = line_right + dis * i; // 非线性延迟出现
                 double len = sfm.horizontalAdvance(msg_text.left(i));
-                double right = line_right + len; // 非线性延迟出现
+                double right = line_right + len;
                 double left = tx + len;
                 double x = left + (right - left) * (1 - prop);
                 painter.drawText(QPointF(x, ty), msg_text.at(i));
