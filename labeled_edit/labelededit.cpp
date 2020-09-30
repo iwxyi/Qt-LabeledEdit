@@ -68,6 +68,30 @@ void LabeledEdit::setLabelText(QString text)
     this->label_text = text;
 }
 
+void LabeledEdit::setMessageText(QString text)
+{
+    setMessageText(text, accent_color);
+}
+
+void LabeledEdit::setMessageText(QString text, QColor color)
+{
+    if (!msg_text.isEmpty())
+        hideMsg();
+    this->msg_text = text;
+    this->msg_color = color;
+}
+
+void LabeledEdit::setTipText(QString text)
+{
+    setTipText(text, Qt::gray);
+}
+
+void LabeledEdit::setTipText(QString text, QColor color)
+{
+    this->tip_text = text;
+    this->tip_color = color;
+}
+
 void LabeledEdit::setAccentColor(QColor color)
 {
     this->accent_color = color;
@@ -82,10 +106,17 @@ void LabeledEdit::showCorrect()
     startAnimation("CorrectProg", getCorrectProg(), 100, correct_duration, QEasingCurve::Linear);
 }
 
+void LabeledEdit::hideCorrect()
+{
+    startAnimation("CorrectProg", getCorrectProg(), 0, correct_duration, QEasingCurve::OutQuad);
+}
+
 void LabeledEdit::showWrong()
 {
     if (show_loading_prog)
         hideLoading();
+    if (tip_prog)
+        hideTip();
     // 隐藏现有文字
     line_edit->setViewShowed(false);
     // 开始动画
@@ -94,13 +125,29 @@ void LabeledEdit::showWrong()
         // 只显示波浪线一次
         wrong_prog = 0;
         line_edit->setViewShowed(true);
+        // 恢复隐藏的提示
+        if (!msg_text.isEmpty())
+            showMsg();
+        else if (entering)
+            showTip();
     });
+    // 随着错误曲线隐藏文字
+    if (!msg_text.isEmpty())
+    {
+        hideMsg();
+    }
+}
+
+void LabeledEdit::showWrong(QString msg)
+{
+    setMessageText(msg);
+    showWrong();
 }
 
 void LabeledEdit::showLoading()
 {
     if (correct_prog)
-        startAnimation("CorrectProg", getCorrectProg(), 0, correct_duration, QEasingCurve::OutQuad);
+        hideCorrect();
 
     if (loading_timer == nullptr)
     {
@@ -123,6 +170,36 @@ void LabeledEdit::hideLoading()
         hide_loading_prog = 0;
         if (loading_timer)
             loading_timer->stop();
+    });
+}
+
+void LabeledEdit::showTip()
+{
+    startAnimation("TipProg", getTipProg(), 100, tip_duration, QEasingCurve::InQuad);
+}
+
+void LabeledEdit::hideTip()
+{
+    startAnimation("TipProg", getTipProg(), 0, tip_duration, QEasingCurve::InQuad);
+}
+
+void LabeledEdit::showMsg()
+{
+    startAnimation("MsgShowProg", getMsgShowProg(), 100, msg_show_duration, QEasingCurve::InQuad);
+}
+
+/**
+ * 隐藏现有的msg，新的msg可能会是不一样的数值
+ * 所以需要备份当前的msg
+ */
+void LabeledEdit::hideMsg()
+{
+    msg_hiding = msg_text;
+    msg_text = "";
+    msg_show_prog = 0;
+    connect(startAnimation("MsgHideProg", getMsgHideProg(), 100, msg_hide_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
+        msg_hide_prog = 0;
+        msg_hiding = "";
     });
 }
 
@@ -347,9 +424,9 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             }
             else if (label_prog >= 100) // 在输入框上面
             {
-                QFont sfm = nft;
-                sfm.setPointSizeF(nft.pointSize() / label_scale);
-                painter.setFont(sfm);
+                QFont sft = nft;
+                sft.setPointSizeF(nft.pointSize() / label_scale);
+                painter.setFont(sft);
 
                 for (int i = 0; i < label_text.size(); i++)
                 {
@@ -508,6 +585,87 @@ void LabeledEdit::paintEvent(QPaintEvent *)
         }
     }
 
+    // 绘制逐渐消失的msg
+    if (msg_hide_prog && msg_hide_prog < 100 && !msg_hiding.isEmpty())
+    {
+        QFont sft = line_edit->font();
+        double size = sft.pointSize() / label_scale - pen_width/2;
+        sft.setPointSizeF(size);
+        QFontMetricsF nfm(sft); // 这是较小的大小
+        size = size * (100-msg_hide_prog)/100;
+        painter.setPen(accent_color);
+        double y = line_top + nfm.height() / 2;
+        if (size >= 0.5)
+        {
+            sft.setPointSizeF(size);
+            y += QFontMetricsF(sft).height()/2;
+            painter.setFont(sft);
+
+            // 从原本的大小变成一个个小点
+            for (int i = 0; i < msg_hiding.size(); i++)
+            {
+                double w = nfm.horizontalAdvance(msg_hiding.left(i));
+                QPointF pos(label_up_poss.first().x() + w, y);
+                painter.drawText(pos, msg_hiding.at(i));
+            }
+        }
+        else if (size >= 0.1)
+        {
+            // 画点……
+            for (int i = 0; i < msg_hiding.size(); i++)
+            {
+                double w = nfm.horizontalAdvance(msg_hiding.left(i));
+                QPointF pos(label_up_poss.first().x() + w, y);
+                // painter.drawEllipse(pos.x()-1, pos.y()-1, size, size);
+                painter.drawPoint(pos);
+            }
+        }
+    }
+
+    // 绘制错误信息
+    if (msg_show_prog && !msg_text.isEmpty())
+    {
+        QFont sft = line_edit->font();
+        sft.setPointSizeF(sft.pointSize() / label_scale - pen_width/2);
+        painter.setFont(sft);
+        painter.setPen(accent_color);
+
+        if (msg_show_prog) // 绘制从右边过来的文字
+        {
+            double x = label_up_poss.first().x();
+            double y = line_top + QFontMetricsF(sft).height();
+
+            x = x + (line_right - x) * (100 - msg_show_prog) / 100;
+            QPointF pos(x, y);
+            painter.drawText(pos, msg_text);
+
+            /*for (int i = 0; i < msg_text.size(); i++)
+            {
+
+            }*/
+        }
+        else // 绘制普通文字
+        {
+            QPointF pos(label_up_poss.first().x(), line_top + QFontMetricsF(sft).height());
+            painter.drawText(pos, msg_text);
+        }
+    }
+
+    // 绘制提示文字
+    else if (tip_prog && !tip_text.isEmpty())
+    {
+        QFont sft = line_edit->font();
+        sft.setPointSizeF(sft.pointSize() / label_scale - pen_width/2);
+        painter.setFont(sft);
+
+        QColor c = tip_color;
+        c.setAlpha(c.alpha() * tip_prog / 100);
+        painter.setPen(c);
+
+        QPointF pos(label_up_poss.first().x(), line_top + QFontMetricsF(sft).height());
+        painter.drawText(pos, tip_text);
+    }
+
     // 绘制加载中动画
     if (show_loading_prog || hide_loading_prog)
     {
@@ -539,6 +697,26 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             painter.drawLine(inn, out);
             angle += per_angle; // 颜色逐渐变淡
         }
+    }
+}
+
+void LabeledEdit::enterEvent(QEvent *event)
+{
+    QWidget::enterEvent(event);
+    entering = true;
+    if (!tip_text.isEmpty())
+    {
+        showTip();
+    }
+}
+
+void LabeledEdit::leaveEvent(QEvent *event)
+{
+    QWidget::leaveEvent(event);
+    entering = false;
+    if (!tip_text.isEmpty())
+    {
+        hideTip();
     }
 }
 
@@ -629,4 +807,37 @@ void LabeledEdit::setHideLoadingProg(int x)
 int LabeledEdit::getHideLoadingProg()
 {
     return hide_loading_prog;
+}
+
+void LabeledEdit::setTipProg(int x)
+{
+    this->tip_prog = x;
+    update();
+}
+
+int LabeledEdit::getTipProg()
+{
+    return tip_prog;
+}
+
+void LabeledEdit::setMsgShowProg(int x)
+{
+    this->msg_show_prog = x;
+    update();
+}
+
+int LabeledEdit::getMsgShowProg()
+{
+    return msg_show_prog;
+}
+
+void LabeledEdit::setMsgHideProg(int x)
+{
+    this->msg_hide_prog = x;
+    update();
+}
+
+int LabeledEdit::getMsgHideProg()
+{
+    return msg_hide_prog;
 }
