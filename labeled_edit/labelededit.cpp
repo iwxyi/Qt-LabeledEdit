@@ -79,7 +79,7 @@ void LabeledEdit::adjustBlank()
 
     up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
     down_spacer->setMinimumHeight(static_cast<int>(wave_h));
-    line_edit->setMinimumHeight(nfm.lineSpacing() + pen_width);
+    line_edit->setMinimumHeight(static_cast<int>(nfm.lineSpacing() + pen_width));
     this->setMinimumHeight(up_spacer->minimumHeight() + down_spacer->minimumHeight() + line_edit->minimumHeight());
     layout()->setMargin(0);
 
@@ -185,11 +185,10 @@ void LabeledEdit::showWrong()
     if (tip_prog)
         hideTip();
 
-    // 隐藏现有文字
-    line_edit->setViewShowed(false);
     // 开始动画
     correct_prog = 0;
-    connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
+    wrong_prog = qMax(wrong_prog, 1); // 从1开始，避免隐藏输入框而0又不显示文字导致的文字闪动
+    connect(startAnimation("WrongProg", wrong_prog, 100, wrong_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
         // 只显示波浪线一次
         wrong_prog = 0;
         line_edit->setViewShowed(true);
@@ -199,6 +198,8 @@ void LabeledEdit::showWrong()
         else if (entering)
             showTip();
     });
+    // 隐藏现有文字
+    line_edit->setViewShowed(false);
 
     // 随着错误曲线隐藏文字
     if (!msg_text.isEmpty())
@@ -578,10 +579,10 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     else // 错误曲线
     {
         QFont nft = line_edit->font();
-        QFontMetrics nfm(nft);
+        QFontMetricsF nfm(nft);
         double n_offset = nfm.horizontalAdvance(line_edit->displayText()) / 2;
         QFont sft = nft;
-        QFontMetrics sfm(sft);
+        QFontMetricsF sfm(sft);
         double s_offset = sfm.horizontalAdvance(label_text) * 2 / 3;
 
         // 绘制波浪线
@@ -612,7 +613,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
 
         // 绘制文字
         painter.setPen(QPen(grayed_color, 1));
-        if (line_edit->text().isEmpty() && !line_edit->hasFocus()) // 文字在编辑框中
+        if (line_edit->text().isEmpty() && !line_edit->hasFocus()) // 标签在编辑框中
         {
             painter.setFont(nft);
             for (int i = 0; i < label_text.size(); i++)
@@ -623,7 +624,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 painter.drawText(QPointF(x, y + label_in_poss.at(i).y() - line_top), label_text.at(i));
             }
         }
-        else // 文字在编辑框上面
+        else // 标签在编辑框上面
         {
             sft.setPointSizeF(nft.pointSize() / label_scale);
             painter.setFont(sft);
@@ -638,15 +639,16 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 painter.drawText(QPointF(x, label_up_poss.at(i).y() + (y-line_top)/label_scale), label_text.at(i));
             }
 
-            // 输入的曲线
+            // 输入文字的曲线动画
             QString display_text = line_edit->displayText();
             if (!display_text.isEmpty())
             {
                 painter.setFont(nft);
                 painter.setPen(line_edit->palette().color(QPalette::Text));
-                QMargins margins = line_edit->textMargins();
-                QPointF pos = line_edit->geometry().bottomLeft();
-                pos = QPointF(pos.x() + 2 + margins.left(), pos.y() - margins.bottom() + nfm.height() - nfm.lineSpacing());
+                QPointF pos = line_edit->geometry().bottomLeft(); // 绘制左下角（值不要是浮点数，不然动起来会抖）
+                pos = QPointF(pos.x() + 1 + 2, // padding=1，多的2就不知道了……
+                              pos.y() + nfm.height() - nfm.lineSpacing()
+                              - (line_edit->size().height() - line_edit->sizeHint().height() + 1)/2);
                 for (int i = 0; i < display_text.size(); i++)
                 {
                     double x = pos.x() + nfm.horizontalAdvance(display_text.left(i));

@@ -4,7 +4,7 @@ BottomLineEdit::BottomLineEdit(QWidget *parent) : QLineEdit(parent)
 {
     setObjectName("BottomLineEdit");
 
-    setStyleSheet("#BottomLineEdit { background: transparent; border: none;}");
+    setStyleSheet("#BottomLineEdit { background: transparent; border: none; margin: 0px; padding: 1px;}");
 }
 
 void BottomLineEdit::setViewShowed(bool show)
