@@ -50,6 +50,8 @@ public:
     void hideLoading();
 
 private:
+    void upperLabel();
+    void innerLabel();
     void showTip();
     void hideTip();
     void showMsg();
@@ -99,7 +101,7 @@ private:
     QString label_text;    // 标签
     QList<QPointF> label_in_poss; // 标签在输入框里面的左下角位置
     QList<QPointF> label_up_poss; // 标签在输入框上方的左下角位置
-    QRect loading_rect;    // 加载菊花的位置
+    const int label_ani_max = 4;  // 不超过这数字就使用普通的动画
 
     QString tip_text;
     QColor tip_color;
@@ -111,6 +113,7 @@ private:
 
     QTimer* loading_timer = nullptr;
     int loading_petal = 8;    // 菊花花瓣数量
+    QRect loading_rect;    // 加载菊花的位置
     double loading_inner = 0; // 菊花内环半径
     double loading_outer = 0; // 菊花外环半径
     int loading_index = 0; // 加载到了哪个花瓣（最右边为0）
@@ -128,7 +131,7 @@ private:
 
     const int pen_width = 2;
     const double label_scale = 1.5;
-    const int label_duration = 500;
+    const int label_duration = 400;
     const int focus_duration = 500;
     const int wrong_duration = 900;
     const int correct_duration = 600;
