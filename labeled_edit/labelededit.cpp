@@ -20,7 +20,7 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
         connect(startAnimation("FocusProg", getFocusProg(), 100, focus_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
             loses_prog = 0;
         });
-        startAnimation("LabelProg", getLabelProg(), 100, label_duration, QEasingCurve::Linear);
+        upperLabel();
     });
     connect(line_edit, &BottomLineEdit::signalFocusOut, this, [=]{
         if (line_edit->hasFocus()) // 比如右键菜单，还是算作聚焦的
@@ -31,7 +31,7 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
             loses_prog = 0;
         });
         if (line_edit->text().isEmpty())
-            startAnimation("LabelProg", getLabelProg(), 0, label_duration, QEasingCurve::Linear);
+            innerLabel();
     });
     connect(line_edit, &BottomLineEdit::textEdited, this, [=]{
         if (correct_prog)
@@ -79,7 +79,7 @@ void LabeledEdit::adjustBlank()
 
     up_spacer->setMinimumHeight(static_cast<int>(label_sh * label_scale));
     down_spacer->setMinimumHeight(static_cast<int>(wave_h));
-    line_edit->setMinimumHeight(nfm.lineSpacing() + pen_width);
+    line_edit->setMinimumHeight(static_cast<int>(nfm.lineSpacing() + pen_width));
     this->setMinimumHeight(up_spacer->minimumHeight() + down_spacer->minimumHeight() + line_edit->minimumHeight());
     layout()->setMargin(0);
 
@@ -115,7 +115,7 @@ void LabeledEdit::setText(QString text)
     line_edit->setText(text);
     if (label_prog <= 0.0001)
     {
-        startAnimation("LabelProg", getLabelProg(), 100, label_duration, QEasingCurve::Linear);
+        upperLabel();
     }
 }
 
@@ -185,11 +185,10 @@ void LabeledEdit::showWrong()
     if (tip_prog)
         hideTip();
 
-    // 隐藏现有文字
-    line_edit->setViewShowed(false);
     // 开始动画
     correct_prog = 0;
-    connect(startAnimation("WrongProg", getWrongProg(), 100, wrong_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
+    wrong_prog = qMax(wrong_prog, 1); // 从1开始，避免隐藏输入框而0又不显示文字导致的文字闪动
+    connect(startAnimation("WrongProg", wrong_prog, 100, wrong_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
         // 只显示波浪线一次
         wrong_prog = 0;
         line_edit->setViewShowed(true);
@@ -199,6 +198,8 @@ void LabeledEdit::showWrong()
         else if (entering)
             showTip();
     });
+    // 隐藏现有文字
+    line_edit->setViewShowed(false);
 
     // 随着错误曲线隐藏文字
     if (!msg_text.isEmpty())
@@ -242,6 +243,22 @@ void LabeledEdit::hideLoading()
         if (loading_timer)
             loading_timer->stop();
     });
+}
+
+void LabeledEdit::upperLabel()
+{
+    if (label_text.length() > label_ani_max)
+        startAnimation("LabelProg", getLabelProg(), 100, label_duration, QEasingCurve::Linear);
+    else
+        startAnimation("LabelProg", getLabelProg(), 100, label_duration*2/3, QEasingCurve::OutCirc);
+}
+
+void LabeledEdit::innerLabel()
+{
+    if (label_text.length() > label_ani_max)
+        startAnimation("LabelProg", getLabelProg(), 0, label_duration, QEasingCurve::Linear);
+    else
+        startAnimation("LabelProg", getLabelProg(), 0, label_duration*2/3, QEasingCurve::OutCirc);
 }
 
 void LabeledEdit::showTip()
@@ -460,35 +477,53 @@ void LabeledEdit::paintEvent(QPaintEvent *)
             }
             else if (focus_prog && !loses_prog)
             {
-                // 左边先抬起来，左边进度最大
                 QFont aft = line_edit->font();
                 const double in_size = nft.pointSizeF();
                 const double up_size = in_size / label_scale;
                 const int count = label_text.size();
-                const double step = 100.0 / count / 2.5; // 每个文字动画比前面文字慢一点，有种曲线感
-                const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
-                for (int i = 0; i < count; i++)
+                if (label_text.size() > label_ani_max) // 左边先抬起来，左边进度最大
                 {
-                    double char_min_prog = step * i;
-                    double prog = label_prog - char_min_prog; // 相对于这个字符串的本身周期的prog
-                    if (prog < 0)
-                        prog = 0;
-                    else if (prog > persist_prog)
-                        prog = persist_prog;
-                    const double max_angle = PI * (0.5 + 1.0/6 * (count-i/2) / count); // 2/3π~4/3π角度为超过上限
-                    const double out_prob = 1.0 / sin(max_angle) - 1;
-                    const double angle = max_angle * prog / persist_prog;
-                    const double cent = sin(angle) * (1 + out_prob); // sin(a)是100的百分比，这里超出20%左右
-                    const double size = in_size - (in_size - up_size) * cent;
-                    aft.setPointSizeF(size);
-                    QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
-                    const double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
-                    const double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
-                    QPointF pos(x, y);
-                    painter.setFont(aft);
-                    painter.drawText(pos, label_text.at(i));
-                    prog -= step;
+                    const double step = 100.0 / count / 2.5; // 每个文字动画比前面文字慢一点，有种曲线感
+                    const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
+                    for (int i = 0; i < count; i++)
+                    {
+                        double char_min_prog = step * i;
+                        double prog = label_prog - char_min_prog; // 相对于这个字符串的本身周期的prog
+                        if (prog < 0)
+                            prog = 0;
+                        else if (prog > persist_prog)
+                            prog = persist_prog;
+                        const double max_angle = PI * (0.5 + 1.0/6 * (count-i/2) / count); // 2/3π~4/3π角度为超过上限
+                        const double out_prob = 1.0 / sin(max_angle) - 1;
+                        const double angle = max_angle * prog / persist_prog;
+                        const double cent = sin(angle) * (1 + out_prob); // sin(a)是100的百分比，这里超出20%左右
+                        const double size = in_size - (in_size - up_size) * cent;
+                        aft.setPointSizeF(size);
+                        QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
+                        const double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
+                        const double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
+                        QPointF pos(x, y);
+                        painter.setFont(aft);
+                        painter.drawText(pos, label_text.at(i));
+                        prog -= step;
+                    }
                 }
+                else // 全部一致的文字运动
+                {
+                    double prop = label_prog / 100;
+                    const double size = in_size - (in_size - up_size) * prop;
+                    aft.setPointSizeF(size);
+                    painter.setFont(aft);
+                    for (int i = 0; i < count; i++)
+                    {
+                        QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
+                        const double y = in_pos.y() - (in_pos.y() - up_pos.y()) * prop;
+                        const double x = in_pos.x() - (in_pos.x() - up_pos.x()) * prop;
+                        QPointF pos(x, y);
+                        painter.drawText(pos, label_text.at(i));
+                    }
+                }
+
             }
             else // loses_prog
             {
@@ -497,28 +532,46 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 const double in_size = nft.pointSizeF();
                 const double up_size = in_size / label_scale;
                 const int count = label_text.size();
-                const double step = 100.0 / count / 4; // 每个文字动画比前面文字慢一点，有种曲线感
-                const double max_angle = PI / 2; // 2/3π~4/3π角度为超过上限
-                const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
-                for (int i = 0; i < count; i++)
+                if (label_text.size() > label_ani_max)
                 {
-                    double char_min_prog = step * (count - i - 1);
-                    double prog = label_prog - char_min_prog; // 相对于这个字符串的本身周期的prog
-                    if (prog < 0)
-                        prog = 0;
-                    else if (prog > persist_prog)
-                        prog = persist_prog;
-                    double angle = max_angle * prog / persist_prog;
-                    double cent = sin(angle); // sin(a)是100的百分比
-                    double size = in_size - (in_size - up_size) * cent;
+                    const double step = 100.0 / count / 4; // 每个文字动画比前面文字慢一点，有种曲线感
+                    const double max_angle = PI / 2; // 2/3π~4/3π角度为超过上限
+                    const double persist_prog = 100 - step * (count-1); // 每个字符动画的真正时长
+                    for (int i = 0; i < count; i++)
+                    {
+                        double char_min_prog = step * (count - i - 1);
+                        double prog = label_prog - char_min_prog; // 相对于这个字符串的本身周期的prog
+                        if (prog < 0)
+                            prog = 0;
+                        else if (prog > persist_prog)
+                            prog = persist_prog;
+                        double angle = max_angle * prog / persist_prog;
+                        double cent = sin(angle); // sin(a)是100的百分比
+                        double size = in_size - (in_size - up_size) * cent;
+                        aft.setPointSizeF(size);
+                        QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
+                        double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
+                        double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
+                        QPointF pos(x, y);
+                        painter.setFont(aft);
+                        painter.drawText(pos, label_text.at(i));
+                        prog -= step;
+                    }
+                }
+                else
+                {
+                    double prop = label_prog / 100;
+                    const double size = in_size - (in_size - up_size) * prop;
                     aft.setPointSizeF(size);
-                    QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
-                    double x = in_pos.x() - (in_pos.x() - up_pos.x()) * cent;
-                    double y = in_pos.y() - (in_pos.y() - up_pos.y()) * cent;
-                    QPointF pos(x, y);
                     painter.setFont(aft);
-                    painter.drawText(pos, label_text.at(i));
-                    prog -= step;
+                    for (int i = 0; i < count; i++)
+                    {
+                        QPointF in_pos(label_in_poss.at(i)), up_pos(label_up_poss.at(i));
+                        const double y = in_pos.y() - (in_pos.y() - up_pos.y()) * prop;
+                        const double x = in_pos.x() - (in_pos.x() - up_pos.x()) * prop;
+                        QPointF pos(x, y);
+                        painter.drawText(pos, label_text.at(i));
+                    }
                 }
             }
         }
@@ -526,10 +579,10 @@ void LabeledEdit::paintEvent(QPaintEvent *)
     else // 错误曲线
     {
         QFont nft = line_edit->font();
-        QFontMetrics nfm(nft);
+        QFontMetricsF nfm(nft);
         double n_offset = nfm.horizontalAdvance(line_edit->displayText()) / 2;
         QFont sft = nft;
-        QFontMetrics sfm(sft);
+        QFontMetricsF sfm(sft);
         double s_offset = sfm.horizontalAdvance(label_text) * 2 / 3;
 
         // 绘制波浪线
@@ -560,7 +613,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
 
         // 绘制文字
         painter.setPen(QPen(grayed_color, 1));
-        if (line_edit->text().isEmpty() && !line_edit->hasFocus()) // 文字在编辑框中
+        if (line_edit->text().isEmpty() && !line_edit->hasFocus()) // 标签在编辑框中
         {
             painter.setFont(nft);
             for (int i = 0; i < label_text.size(); i++)
@@ -571,7 +624,7 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 painter.drawText(QPointF(x, y + label_in_poss.at(i).y() - line_top), label_text.at(i));
             }
         }
-        else // 文字在编辑框上面
+        else // 标签在编辑框上面
         {
             sft.setPointSizeF(nft.pointSize() / label_scale);
             painter.setFont(sft);
@@ -586,15 +639,16 @@ void LabeledEdit::paintEvent(QPaintEvent *)
                 painter.drawText(QPointF(x, label_up_poss.at(i).y() + (y-line_top)/label_scale), label_text.at(i));
             }
 
-            // 输入的曲线
+            // 输入文字的曲线动画
             QString display_text = line_edit->displayText();
             if (!display_text.isEmpty())
             {
                 painter.setFont(nft);
                 painter.setPen(line_edit->palette().color(QPalette::Text));
-                QMargins margins = line_edit->textMargins();
-                QPointF pos = line_edit->geometry().bottomLeft();
-                pos = QPointF(pos.x() + 2 + margins.left(), pos.y() - margins.bottom() + nfm.height() - nfm.lineSpacing());
+                QPointF pos = line_edit->geometry().bottomLeft(); // 绘制左下角（值不要是浮点数，不然动起来会抖）
+                pos = QPointF(pos.x() + 1 + 2, // padding=1，多的2就不知道了……
+                              pos.y() + nfm.height() - nfm.lineSpacing()
+                              - (line_edit->size().height() - line_edit->sizeHint().height() + 1)/2);
                 for (int i = 0; i < display_text.size(); i++)
                 {
                     double x = pos.x() + nfm.horizontalAdvance(display_text.left(i));
