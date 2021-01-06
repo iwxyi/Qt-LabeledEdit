@@ -43,7 +43,7 @@ void MainWindow::on_pushButton_clicked()
     }
     else if (ui->widget_2->editor()->hasFocus())
     {
-        ui->widget_2->showWrong("密码错误，您还剩余2次机会");
+        ui->widget_2->showWrong("密码错误，您还剩余2次机会", true);
     }
 }
 

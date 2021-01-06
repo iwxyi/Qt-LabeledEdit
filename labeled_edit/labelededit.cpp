@@ -38,6 +38,10 @@ LabeledEdit::LabeledEdit(QWidget *parent) : QWidget(parent)
         {
             startAnimation("CorrectProg", getCorrectProg(), 0, correct_duration, QEasingCurve::Linear);
         }
+        if (autoClearMsg && !msg_text.isEmpty())
+        {
+            hideMsg();
+        }
     });
 
     grayed_color = Qt::gray;
@@ -135,9 +139,10 @@ void LabeledEdit::setLabelText(QString text)
     adjustBlank();
 }
 
-void LabeledEdit::setMsgText(QString text)
+void LabeledEdit::setMsgText(QString text, bool autoClear)
 {
     setMsgText(text, accent_color);
+    this->autoClearMsg = autoClear;
 }
 
 void LabeledEdit::setMsgText(QString text, QColor color)
@@ -208,10 +213,10 @@ void LabeledEdit::showWrong()
     }
 }
 
-void LabeledEdit::showWrong(QString msg)
+void LabeledEdit::showWrong(QString msg, bool autoClear)
 {
     showWrong();
-    setMsgText(msg);
+    setMsgText(msg, autoClear);
 }
 
 void LabeledEdit::showLoading()
@@ -232,14 +237,18 @@ void LabeledEdit::showLoading()
         });
     }
     loading_timer->start();
-    startAnimation("ShowLoadingProg", getShowLoadingProg(), 100, show_loading_duration, QEasingCurve::QEasingCurve::OutBack);
+    connect(startAnimation("ShowLoadingProg", getShowLoadingProg(), 100, show_loading_duration, QEasingCurve::QEasingCurve::OutBack), &QPropertyAnimation::finished, this, [=]{
+        if (hide_loading_prog > 90) // 如果loading正在show然后马上hide，那么会hide先结束，然后再show结束，导致一直显示
+            show_loading_prog = 0;
+    });
 }
 
 void LabeledEdit::hideLoading()
 {
     connect(startAnimation("HideLoadingProg", getHideLoadingProg(), 100, hide_loading_duration, QEasingCurve::OutQuad), &QPropertyAnimation::finished, this, [=]{
+        if (show_loading_prog == 100)
+            hide_loading_prog = 0;
         show_loading_prog = 0;
-        hide_loading_prog = 0;
         if (loading_timer)
             loading_timer->stop();
     });
@@ -834,7 +843,7 @@ void LabeledEdit::enterEvent(QEvent *event)
 {
     QWidget::enterEvent(event);
     entering = true;
-    if (!tip_text.isEmpty())
+    if (!tip_text.isEmpty() && msg_text.isEmpty())
     {
         showTip();
     }

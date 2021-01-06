@@ -33,7 +33,13 @@ else
     le->showWrong(); // 错误的波浪线
 
 le->showLoading(); // 开启加载动画
-le->hideLoading(); // 关闭加载动画（调用 loadingCorrect/Wrong 时自动关闭）
+le->hideLoading(); // 关闭加载动画（在调用 showCorrect/showWrong 时会自动 hide）
+le->showWrong("请输入正确的xxx"); // 波浪错误动画+文字提示
+le->showWrong("密码错误", true); // 参数二：用户编辑文字后，是否自动清除掉错误提示
+
+le->setLabelText("用户名"); // 上面的标签文字
+le->setTipText("4~16位字母/数字"); // 鼠标悬浮时提示
+le->setAccentColor(Qt::red);
 ```
 
 

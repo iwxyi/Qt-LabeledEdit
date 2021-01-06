@@ -36,7 +36,7 @@ public:
     void setText(QString text);
 
     void setLabelText(QString text);
-    void setMsgText(QString text);
+    void setMsgText(QString text, bool autoClear = false);
     void setMsgText(QString text, QColor color);
     void setTipText(QString text);
     void setTipText(QString text, QColor color);
@@ -45,7 +45,7 @@ public:
     void showCorrect();
     void hideCorrect();
     void showWrong();
-    void showWrong(QString msg);
+    void showWrong(QString msg, bool autoClear = false);
     void showLoading();
     void hideLoading();
 
@@ -103,13 +103,14 @@ private:
     QList<QPointF> label_up_poss; // 标签在输入框上方的左下角位置
     const int label_ani_max = 4;  // 不超过这数字就使用普通的动画
 
-    QString tip_text;
+    QString tip_text;      // 鼠标悬浮显示在下面的（有msg_text时隐藏）
     QColor tip_color;
     bool entering = false; // showWrong隐藏tip，用来做flag
 
     QString msg_text; // 警告信息
     QColor msg_color; // 警告颜色
     QString msg_hiding; // 隐藏中的msg，用于两次msg的切换
+    bool autoClearMsg = false; // 自动删除错误消息
 
     QTimer* loading_timer = nullptr;
     int loading_petal = 8;    // 菊花花瓣数量
